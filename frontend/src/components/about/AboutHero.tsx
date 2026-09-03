@@ -1,4 +1,4 @@
-import { Activity } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { BrandLogo } from '@/components/common/BrandLogo'
 
 export function AboutHero() {
@@ -9,20 +9,26 @@ export function AboutHero() {
         aria-hidden="true"
       />
       <div className="relative max-w-3xl">
-        <div className="mb-6 flex items-center gap-4">
+        <h1 className="mb-6">
           <BrandLogo height={44} />
-          <span className="hidden h-8 w-px bg-border-subtle sm:block" aria-hidden="true" />
-          <span className="hidden items-center gap-2 text-sm font-medium text-text-secondary sm:flex">
-            <Activity size={17} className="text-brand-red" aria-hidden="true" />
-            Afet farkındalığı ve analiz arayüzü
-          </span>
-        </div>
-        <h1 className="sr-only">AFET360 Hakkında</h1>
+        </h1>
         <p className="text-xl leading-8 font-semibold tracking-tight text-text-primary sm:text-2xl sm:leading-9">
-          Deprem verilerini, fay hatlarını ve simülasyon senaryolarını anlaşılır
-          bir arayüzde bir araya getirmeyi amaçlayan bir afet farkındalığı ve
-          analiz platformu.
+          Depremi anlamak, olası senaryoları deneyimlemek ve daha hazırlıklı
+          olmak için bir afet farkındalık platformu.
         </p>
+        <ol aria-label="AFET360 yaklaşımı" className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm font-medium text-text-primary">
+          <li>
+            <span className="flex items-center gap-3">
+              Bilgi <ArrowRight size={15} className="text-brand-red" aria-hidden="true" />
+            </span>
+          </li>
+          <li>
+            <span className="flex items-center gap-3">
+              Farkındalık <ArrowRight size={15} className="text-brand-red" aria-hidden="true" />
+            </span>
+          </li>
+          <li>Hazırlık</li>
+        </ol>
       </div>
     </header>
   )

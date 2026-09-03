@@ -18,10 +18,11 @@ export function SafetyNotice() {
             Önemli Bilgilendirme
           </h2>
           <p className="mt-2 text-sm leading-6 text-text-primary sm:text-[15px] sm:leading-7">
-            AFET360 bir resmî erken uyarı, deprem tahmin veya acil durum
-            yönlendirme sistemi değildir. Deprem ve afet durumlarında AFAD ile
-            ilgili resmî kurumların açıklamaları esas alınmalı; bilimsel ve
-            resmî kararlar yetkili kurumların verilerine dayanmalıdır.
+            AFET360 bilgilendirme, farkındalık ve hazırlık amacı taşır.
+            Depremleri önceden tahmin eden, erken uyarı veren veya resmî acil
+            durum yönlendirmesi sağlayan bir sistem değildir. Afet ve acil
+            durumlarda AFAD ve ilgili resmî kurumların açıklama ve talimatlarını
+            takip edin.
           </p>
         </div>
       </div>

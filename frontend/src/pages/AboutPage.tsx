@@ -1,17 +1,18 @@
 import {
   Activity,
-  ChartNoAxesCombined,
-  Database,
-  Goal,
-  House,
+  BookOpen,
+  ClipboardCheck,
+  Compass,
   Layers3,
+  Lightbulb,
   MapPinned,
+  ShieldCheck,
   SlidersHorizontal,
+  UsersRound,
   Waypoints,
 } from 'lucide-react'
 import { AboutHero } from '@/components/about/AboutHero'
 import { AboutSection } from '@/components/about/AboutSection'
-import { DataSourceCard } from '@/components/about/DataSourceCard'
 import { ModuleCard } from '@/components/about/ModuleCard'
 import { SafetyNotice } from '@/components/about/SafetyNotice'
 
@@ -20,132 +21,90 @@ export function AboutPage() {
     <div className="mx-auto w-full max-w-6xl space-y-4 sm:space-y-6">
       <AboutHero />
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-        <AboutSection id="afet360-nedir" title="AFET360 Nedir?" icon={Activity}>
-          <p>
-            AFET360, Türkiye&apos;deki deprem tehlikesi ve aktif fay verilerini
-            harita tabanlı bir arayüz üzerinden incelemeyi ve kullanıcıların
-            belirledikleri konumlar için deprem senaryoları hazırlayabilmesini
-            amaçlayan web tabanlı bir bilgi ve senaryo arayüzüdür.
-          </p>
-          <p>
-            Uygulama bir deprem tahmin sistemi değildir; depremlerin ne zaman
-            gerçekleşeceğini öngörmez.
-          </p>
-        </AboutSection>
+      <AboutSection id="afet360-nedir" title="AFET360 Nedir?" icon={Compass}>
+        <p>
+          AFET360, deprem konusunda farkındalığı artırmak, yaşadığınız bölgeyi
+          daha iyi tanımanızı sağlamak ve olası bir deprem öncesinde hazırlıklı
+          olmanıza yardımcı olmak için tasarlanmış bir afet bilgilendirme ve
+          hazırlık platformudur.
+        </p>
+        <p>
+          Harita tabanlı araçları, deprem senaryolarını ve kişisel hazırlık
+          rehberlerini bir araya getirerek bilgiyi günlük yaşamınızda
+          atabileceğiniz somut adımlarla buluşturur.
+        </p>
+      </AboutSection>
 
-        <AboutSection id="projenin-amaci" title="Projenin Amacı" icon={Goal}>
-          <ul className="space-y-3" role="list">
-            {[
-              'Depremle ilgili coğrafi bilgilerin incelenmesini kolaylaştırmak',
-              'İl sınırlarını ve aktif fay geometrilerini anlaşılır biçimde görselleştirmek',
-              'Kullanıcı tanımlı deprem senaryosu girdilerini hazırlamak',
-              'Gelecekteki backend tabanlı analiz sonuçları için sağlam bir arayüz oluşturmak',
-            ].map((goal) => (
-              <li key={goal} className="flex items-start gap-3">
-                <span
-                  className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-red"
-                  aria-hidden="true"
-                />
-                <span>{goal}</span>
-              </li>
-            ))}
-          </ul>
-        </AboutSection>
-      </div>
-
-      <AboutSection id="uygulama-modulleri" title="Uygulama Modülleri" icon={Layers3}>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <AboutSection id="neler-yapabilirsiniz" title="Neler Yapabilirsiniz?" icon={Layers3}>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <ModuleCard
-            icon={House}
-            title="Ana Sayfa"
-            description="Türkiye il haritası ve geliştirme amaçlı geçici risk görünümü."
+            icon={MapPinned}
+            title="Deprem Haritası"
+            description="Türkiye haritası üzerinden şehirleri inceleyin ve depremle ilgili bölgesel bilgileri daha anlaşılır bir şekilde keşfedin."
+            className="lg:col-span-2"
           />
           <ModuleCard
             icon={Waypoints}
-            title="Fay Hatları"
-            description="Türkiye görünümündeki kaynak tabanlı aktif fay geometrilerinin incelenmesi."
+            title="Fay Hatlarını İnceleyin"
+            description="Türkiye üzerindeki aktif fay hatlarını haritada görüntüleyin ve farklı bölgelerdeki fay yapılarını inceleyin."
+            className="lg:col-span-2"
           />
           <ModuleCard
             icon={SlidersHorizontal}
-            title="Deprem Simülasyonu"
-            description="Harita üzerinden konum, büyüklük, derinlik ve etki yarıçapı seçimi."
+            title="Deprem Senaryosu Oluşturun"
+            description="Haritadan bir konum seçin; deprem büyüklüğü, derinlik ve etki alanını belirleyerek farklı senaryoları deneyimleyin."
+            className="lg:col-span-2"
           />
           <ModuleCard
-            icon={ChartNoAxesCombined}
-            title="Simülasyon Sonuçları"
-            description="Backend simülasyon sistemi tamamlandığında senaryo sonuçlarının sunulması planlanan bölüm."
-            status="Planlandı"
+            icon={ClipboardCheck}
+            title="Hazırlık Rehberi"
+            description="Kendiniz, aileniz ve yaşam koşullarınız için kişiselleştirilmiş afet hazırlık önerileri oluşturun."
+            className="lg:col-span-3"
+          />
+          <ModuleCard
+            icon={UsersRound}
+            title="Toplanma Alanları"
+            description="Bölgenizdeki toplanma alanlarını harita üzerinden inceleyin ve ihtiyaç anında ulaşabileceğiniz noktaları önceden tanıyın."
+            className="sm:col-span-2 lg:col-span-3"
           />
         </div>
       </AboutSection>
 
-      <AboutSection id="veri-kaynaklari" title="Veri Kaynakları" icon={Database}>
-        <p className="mb-5 max-w-3xl">
-          İl sınırı ve aktif fay katmanları uygulama paketinde yerel olarak
-          saklanır. Bu katmanlar için çalışma sırasında AFAD veya GEM&apos;den
-          veri indirilmez.
-        </p>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <DataSourceCard
-            title="Türkiye İl Sınırları"
-            source="alpers/Turkey-Maps-GeoJSON"
-            sourceHref="https://github.com/alpers/Turkey-Maps-GeoJSON"
-            license="Apache Lisansı 2.0"
-            licenseHref="https://github.com/alpers/Turkey-Maps-GeoJSON/blob/master/LICENSE"
-            description="81 ilin sınır geometrileri kaynak dosyadaki koordinatlar değiştirilmeden yerel GeoJSON olarak kullanılır."
-          />
-          <DataSourceCard
-            title="Aktif Fay Geometrileri"
-            source="GEM Global Active Faults Database"
-            sourceHref="https://github.com/GEMScienceTools/gem-global-active-faults"
-            license="CC BY-SA 4.0"
-            licenseHref="https://creativecommons.org/licenses/by-sa/4.0/"
-            description="EMME kataloğundan Türkiye görünümü için filtrelenen bir alt kümedir; kaynak koordinatları korunmuştur. Resmî veya eksiksiz bir ulusal envanter değildir. GEM desteği veya onayı ima edilmez."
-            attribution="GEM Foundation · Styron ve Pagani (2020). Türetilmiş fay verisi ve görsel katmanı CC BY-SA 4.0 kapsamında paylaşılır."
-          />
-        </div>
-      </AboutSection>
-
-      <AboutSection id="veri-hakkinda" title="Veri Hakkında" icon={MapPinned}>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <article className="rounded-xl border border-border-subtle bg-surface/70 p-4 sm:p-5">
-            <h3 className="font-semibold text-text-primary">
-              Kaynağa Dayalı Coğrafi Veriler
-            </h3>
-            <p className="mt-2">
-              İl sınırları ile aktif fay geometrileri açık coğrafi kaynaklara
-              dayanır. Aktif fay katmanı kaynak geometrisini ve katalog
-              bilgisini görselleştirir; tek başına bir tehlike veya risk
-              değerlendirmesi oluşturmaz.
-            </p>
-          </article>
-          <article className="rounded-xl border border-brand-red/20 bg-brand-red-soft p-4 sm:p-5">
-            <h3 className="font-semibold text-text-primary">
-              Geliştirme ve Backend Bekleyen Veriler
-            </h3>
-            <p className="mt-2 text-text-primary">
-              İl haritasındaki DÜŞÜK / ORTA / YÜKSEK değerleri, arayüz
-              davranışını göstermek için kullanılan geçici örnek verilerdir.
-              Fayların şehir ve deprem ilişkileri ile simülasyon sonuçları da
-              backend geliştirmesine bağlıdır. Bu içerikler bilimsel veya
-              resmî risk değerlendirmesi olarak yorumlanmamalıdır.
-            </p>
-          </article>
-        </div>
-      </AboutSection>
-
-      <AboutSection id="simulasyon-hakkinda" title="Simülasyon Hakkında" icon={SlidersHorizontal}>
+      <AboutSection id="deprem-simulasyonu" title="Deprem Simülasyonu" icon={Activity}>
         <p>
-          Deprem Simülasyonu sayfası şu anda yalnızca konum, deprem büyüklüğü,
-          derinlik ve etki yarıçapı gibi senaryo girdilerini hazırlar. Bilimsel
-          simülasyon hesaplaması ve sonuç üretimi, gelecekteki backend
-          entegrasyonuna bağlıdır.
+          Deprem simülasyonu, farklı büyüklük ve derinliklerdeki deprem
+          senaryolarının olası etkilerini daha anlaşılır şekilde
+          deneyimlemenize yardımcı olur.
         </p>
         <p>
-          Mevcut frontend; can kaybı, bina hasarı, nüfus veya altyapı etkisi,
-          olasılık ya da gerçek deprem sonucu hesaplamaz.
+          Amaç bir depremin ne zaman gerçekleşeceğini tahmin etmek değil;
+          olası bir senaryo üzerinden çevrenizi, riskleri ve hazırlık
+          ihtiyaçlarınızı daha iyi anlamaktır.
         </p>
+        <p>
+          Senaryoyu inceleyerek kendiniz, aileniz ve yaşam alanınız için hangi
+          önlemleri alabileceğinizi değerlendirebilirsiniz.
+        </p>
+      </AboutSection>
+
+      <AboutSection id="neden-afet360" title="Neden AFET360?" icon={Lightbulb}>
+        <div className="grid gap-4 md:grid-cols-3">
+          <ModuleCard
+            icon={BookOpen}
+            title="Bilgi"
+            description="Depremle ilgili coğrafi bilgileri sade ve anlaşılır bir arayüz üzerinden inceleyin."
+          />
+          <ModuleCard
+            icon={Lightbulb}
+            title="Farkındalık"
+            description="Farklı deprem senaryolarını değerlendirerek yaşadığınız çevreye yönelik farkındalığınızı artırın."
+          />
+          <ModuleCard
+            icon={ShieldCheck}
+            title="Hazırlık"
+            description="Afet öncesinde atabileceğiniz adımları öğrenin ve kendiniz için uygulanabilir bir hazırlık planı oluşturun."
+          />
+        </div>
       </AboutSection>
 
       <SafetyNotice />
