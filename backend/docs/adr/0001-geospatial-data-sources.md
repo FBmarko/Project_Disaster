@@ -39,12 +39,19 @@ Before creating domain models and database tables, authoritative sources, licens
 - **Ingestion Strategy**: Scheduled background ingestion into local PostgreSQL + PostGIS with event deduplication on `source_event_id`. Polling interval is configurable (with exponential backoff and timeout safeguards), to be finalized after observing AFAD rate-limit performance.
 - **Timestamp Semantics**: Do not assume UTC without verification; catalog UI exposes UTC and local time (TSI). The ingestion worker will verify source timezone format before normalizing to timezone-aware UTC in PostgreSQL.
 
-### 3. Earthquake Hazard Data Source: AFAD TDTH
+### 3. Earthquake Hazard Data Source: Two-Tier Development & Production Model
 
-- **Status**: **UNRESOLVED / REQUIRES FURTHER AUTHORIZATION OR OFFICIAL DATA ACCESS REVIEW**
-- **Authority**: AFAD Türkiye Deprem Tehlike Haritası (TDTH) under TBDY 2018.
-- **Findings**: Data is controlled by AFAD. Legal notice restricts unauthorized reproduction/distribution. No documented anonymous bulk REST API exists. Automated bulk scraping is prohibited.
-- **Decision**: No hazard data ingestion or database modeling will occur until programmatic access rights are formally clarified.
+- **Status**: **PROPOSED / VALIDATED IN PHASE 8A** (See `backend/docs/earthquake-hazard-source-validation.md`)
+- **Official Production Target**: **AFAD Türkiye Deprem Tehlike Haritası (TDTH)**
+  - **Authority**: T.C. İçişleri Bakanlığı AFAD (Enacted via *Türkiye Deprem Tehlike Haritası ve Parametre Değerleri Hakkında Karar*, Decision No. 2018/11275, dated 22 January 2018, published in Resmî Gazete No. 30364 Mükerrer on 18 March 2018, effective 1 January 2019 under TBDY 2018).
+  - **Findings**: Data is controlled by AFAD. As of the 2026-09-03 review, no publicly documented TDTH REST/WMS/WFS/WMTS or bulk hazard service was found in reviewed official AFAD/TUCBS channels. Legal notice explicitly requires written AFAD permission for electronic reproduction, distribution, or publication. Automated scraping is prohibited.
+  - **Status & Access Path**: **CONDITIONAL / BLOCKED FOR REDISTRIBUTION WITHOUT WRITTEN PERMISSION**. Redistribution requires an official institutional protocol (e.g. via Coğrafi Veri Talep Portalı `cografiveri.gov.tr`). UI will provide direct links to `https://tdth.afad.gov.tr/` for official reports.
+- **Development & Staging Source**: **GEM Global Seismic Hazard Map (GSHM v2026.1)**
+  - **Authority**: Global Earthquake Model (GEM) Foundation.
+  - **Verified Open Resource**: Zenodo artifact `gshm_v2026_1_vector.zip` (~935.5 MB). (Format/schema to be inspected prior to Phase 8B; software engine OpenQuake is AGPL-3.0).
+  - **Dataset License**: **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** (distinct from AGPL-3.0 engine license).
+  - **Scientific Capabilities**: Continuous global coverage including Türkiye, assembled from multiple national/regional models. Exposes mean Peak Ground Acceleration (PGA) on reference rock ($V_{S,30} = 800\text{ m/s}$) for a nominal 10% exceedance in 50 years (~475-year return period). Shares the same nominal exceedance concept as AFAD DD-2, but datasets are NOT scientifically interchangeable.
+  - **Status**: **APPROVED — NON-COMMERCIAL DEVELOPMENT / COMPETITION** under CC BY-NC-SA 4.0 conditions (attribution, non-commercial use, ShareAlike).
 
 ### 4. Spatial Proximity Association Methodology
 
@@ -58,10 +65,11 @@ Before creating domain models and database tables, authoritative sources, licens
 
 | Layer | Source Authority | Selected Dataset | License / Access Terms | Status |
 |---|---|---|---|---|
-| **Fault Lines (Dev/Staging)** | Global Earthquake Model (GEM) | GEM Global Active Faults Database (GAF) | CC BY-SA 4.0 (Open Data with Attribution) | **Selected for Phase 4/5** |
+| **Fault Lines (Dev/Staging)** | Global Earthquake Model (GEM) | GEM Global Active Faults Database (GAF) | CC BY-SA 4.0 (Open Data with Attribution) | **Selected & Implemented** |
 | **Fault Lines (Production Target)** | MTA Genel Müdürlüğü | 2026 Türkiye Diri Fay Haritası (Özel Yayın No. 60) | All rights reserved; formal institutional licensing required | **Target pending license** |
-| **Earthquake Events** | AFAD Deprem Dairesi | AFAD Event Web Service (`/apiv2/event/filter`) | Public web service with attribution; WAF/rate limits apply | **Selected for Phase 4/6** |
-| **Earthquake Hazard** | AFAD / TBDY 2018 | Türkiye Deprem Tehlike Haritası (TDTH) | Controlled; no open bulk API; distribution rights unresolved | **Unresolved** |
+| **Earthquake Events** | AFAD Deprem Dairesi | AFAD Event Web Service (`/apiv2/event/filter`) | Public web service with attribution; WAF/rate limits apply | **Selected & Implemented** |
+| **Earthquake Hazard (Dev/Staging)** | Global Earthquake Model (GEM) | GEM Global Seismic Hazard Map (v2026.1) | CC BY-NC-SA 4.0 (Non-Commercial Open Data) | **APPROVED — NON-COMMERCIAL DEVELOPMENT / COMPETITION** |
+| **Earthquake Hazard (Production Target)** | AFAD / TBDY 2018 | Türkiye Deprem Tehlike Haritası (TDTH) | Controlled; no open bulk API; formal institutional protocol required | **CONDITIONAL / BLOCKED WITHOUT WRITTEN PERMISSION** |
 
 ---
 
