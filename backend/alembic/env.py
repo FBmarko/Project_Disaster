@@ -9,6 +9,7 @@ from alembic import context
 # Ensure backend directory is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import app.models  # noqa: F401, E402
 from app.core.config import settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
 

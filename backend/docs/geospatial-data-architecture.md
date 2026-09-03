@@ -163,9 +163,7 @@ class EarthquakeEvent(Base):
     __tablename__ = "earthquake_events"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    source: Mapped[str] = mapped_column(
-        String(50), default="AFAD", nullable=False
-    )
+    source: Mapped[str] = mapped_column(String(50), default="AFAD", nullable=False)
     source_event_id: Mapped[str] = mapped_column(
         String(100), unique=True, index=True, nullable=False
     )
@@ -189,9 +187,7 @@ class EarthquakeEvent(Base):
     is_major: Mapped[bool] = mapped_column(
         Boolean, default=False, index=True
     )  # Derived: magnitude >= 5.0
-    province_derived: Mapped[str | None] = mapped_column(
-        String(100), index=True
-    )
+    province_derived: Mapped[str | None] = mapped_column(String(100), index=True)
     district_derived: Mapped[str | None] = mapped_column(String(100))
 
     # Ingestion metadata

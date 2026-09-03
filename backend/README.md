@@ -147,7 +147,7 @@ ruff format --check .
 
 ## Current Architecture
 
-The backend follows a modular layout:
+The backend follows a modular domain layout:
 
 ```
 backend/
@@ -155,7 +155,8 @@ backend/
 │   ├── env.py
 │   ├── script.py.mako
 │   └── versions/
-│       └── 0001_enable_postgis.py # Initial migration enabling PostGIS
+│       ├── 0001_enable_postgis.py        # Initial migration enabling PostGIS
+│       └── 0002_create_fault_segments.py # FaultSegment table & spatial GiST index
 ├── alembic.ini                    # Alembic configuration
 ├── app/
 │   ├── __init__.py
@@ -172,28 +173,84 @@ backend/
 │   ├── core/
 │   │   ├── __init__.py
 │   │   └── config.py              # Application settings via pydantic-settings
-│   └── db/
+│   ├── db/
+│   │   ├── __init__.py
+│   │   ├── base.py                # SQLAlchemy 2.x DeclarativeBase
+│   │   ├── session.py             # Engine & SessionLocal factory
+│   │   ├── dependencies.py        # FastAPI get_db dependency
+│   │   └── readiness.py           # Database connectivity & PostGIS check
+│   ├── integrations/
+│   │   └── gem/                   # GEM Global Active Faults adapter
+│   │       ├── __init__.py
+│   │       ├── mapping.py         # Field mapping & MultiLineString 2D normalization
+│   │       └── parser.py          # GeoJSON parser & bounding box filter
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── fault_segment.py       # FaultSegment PostGIS model
+│   ├── repositories/
+│   │   ├── __init__.py
+│   │   └── fault_segment.py       # FaultSegment database repository & batch upsert
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   └── fault_segment.py       # Pydantic validation schemas
+│   ├── scripts/
+│   │   ├── __init__.py
+│   │   └── import_gem_faults.py   # Developer CLI command to import GEM active faults
+│   └── services/
 │       ├── __init__.py
-│       ├── base.py                # SQLAlchemy 2.x DeclarativeBase
-│       ├── session.py             # Engine & SessionLocal factory
-│       ├── dependencies.py        # FastAPI get_db dependency
-│       └── readiness.py           # Database connectivity & PostGIS check
+│       └── fault_import.py        # FaultImportService with batch transaction & stats
+├── data/                          # Geospatial dataset documentation & local storage
+│   └── README.md
+├── docs/                          # Architecture specifications & ADRs
+│   ├── geospatial-data-architecture.md
+│   └── adr/
+│       └── 0001-geospatial-data-sources.md
 ├── tests/
 │   ├── __init__.py
+│   ├── fixtures/
+│   │   └── gem_faults_turkey_sample.json # Sample test fixture from GEM GAF
 │   ├── test_config.py             # Database configuration tests
 │   ├── test_database_integration.py # Live PostgreSQL/PostGIS integration tests
 │   ├── test_db_session.py         # Session lifecycle tests
+│   ├── test_fault_segment_integration.py # FaultSegment model & PostGIS integration tests
+│   ├── test_gem_adapter.py        # GEM parser & validation unit tests
 │   └── test_health.py             # Public health endpoint tests
 ├── .env.example                   # Safe template for environment variables
 ├── pyproject.toml                 # Dependencies, tool configurations
 └── README.md
 ```
 
+## Data Import Workflow (GEM Active Faults)
+
+For development and staging, active fault geometries are sourced from the **GEM Global Active Faults Database** under the **CC BY-SA 4.0** license:
+
+```bash
+# 1. Natural Earth Country Boundary Spatial Intersection [Default]
+#    Retains GEM GAF fault features intersecting the Natural Earth 1:50m Türkiye polygon (722 features)
+python -m app.scripts.import_gem_faults --download --turkey-only
+
+# 2. Regional Tectonic Context
+#    Retains faults within the wider regional tectonic bounding box (24-46°E, 34-44°N, 1,051 features)
+python -m app.scripts.import_gem_faults --download --turkey-context
+
+# 3. Global Dataset
+#    Imports all worldwide active fault features without spatial filtering (16,195 features)
+python -m app.scripts.import_gem_faults --download --all
+
+# Or import from a local GeoJSON file:
+python -m app.scripts.import_gem_faults --file path/to/faults.geojson --turkey-only
+```
+
+- **Idempotency**: All imports utilize an idempotent composite unique key `(source, source_feature_id)`. Re-running imports updates changed records and leaves unchanged records intact without duplicate creation.
+- **Attribution Requirement**: Visualizations and API responses derived from GEM GAF must include attribution to the Global Earthquake Model Foundation.
+- **Administrative Boundary**: Country boundary filtering uses the Natural Earth 1:50m open country-boundary polygon (`ne_50m_admin_0_countries`, Public Domain). It is a generalized cartographic boundary, not an official Turkish government boundary source.
+
 ## Current Phase
 
-This repository currently represents **Phase 2: Database Infrastructure Foundation**.
+This repository currently represents **Phase 4: Fault Segment Domain Model and GEM Active Fault Import Pipeline**.
 
 At this stage:
-- PostgreSQL + PostGIS database infrastructure, SQLAlchemy 2.x configuration, session management, and Alembic migrations are established.
-- **Domain models** (e.g. `FaultLine`, `EarthquakeHazard`, `AssemblyArea`, `Disaster`), **user authentication/accounts**, **AI/LLM integrations**, and **external disaster/map APIs** have **NOT** been implemented yet.
-- The FastAPI backend itself is **not containerized** in this phase (only the database runs in Docker).
+- The `fault_segments` database model, spatial GiST indexes, Alembic migrations, Pydantic schemas, GEM GAF adapter, and idempotent import pipeline are established and live-verified.
+- **Public Fault Lines REST API endpoints** (e.g. `GET /api/v1/fault-lines`) are **NOT** implemented yet (scheduled for Phase 5).
+- **Earthquake event models, APIs, and synchronizers** have **NOT** been implemented yet (scheduled for subsequent phases).
+
