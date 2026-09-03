@@ -178,7 +178,9 @@ backend/
 │   ├── script.py.mako
 │   └── versions/
 │       ├── 0001_enable_postgis.py        # Initial migration enabling PostGIS
-│       └── 0002_create_fault_segments.py # FaultSegment table & spatial GiST index
+│       ├── 0002_create_fault_segments.py # FaultSegment table & spatial GiST index
+│       ├── 0003_create_earthquake_events.py # EarthquakeEvent table & GiST index
+│       └── 0004_create_hazard_tables.py # HazardDataset & EarthquakeHazardPoint tables
 ├── alembic.ini                    # Alembic configuration
 ├── app/
 │   ├── __init__.py
@@ -191,6 +193,7 @@ backend/
 │   │       ├── router.py          # v1 router (mounts endpoint routers)
 │   │       └── endpoints/
 │   │           ├── __init__.py
+│   │           ├── earthquakes.py # Earthquake GeoJSON & proximity API endpoints
 │   │           ├── fault_lines.py # Fault lines GeoJSON API endpoint router
 │   │           └── health.py      # Health check endpoint router
 │   ├── core/
@@ -208,58 +211,70 @@ backend/
 │   │   │   ├── client.py          # HTTP client with retries, timeout & pagination
 │   │   │   ├── mapping.py         # Timestamp UTC parser, context BBOX, attribution
 │   │   │   └── parser.py          # JSON parser & Pydantic schema validator
-│   │   └── gem/                   # GEM Global Active Faults adapter
+│   │   └── gem/                   # GEM Global Active Faults & GSHM hazard adapters
 │   │       ├── __init__.py
-│   │       ├── mapping.py         # Field mapping & MultiLineString 2D normalization
-│   │       └── parser.py          # GeoJSON parser & bounding box filter
+│   │       ├── hazard_constants.py # GSHM v2026.1 scientific metadata & specs
+│   │       ├── hazard_reader.py   # RTree GeoPackage streaming reader & validator
+│   │       ├── mapping.py         # Fault mapping & MultiLineString 2D normalization
+│   │       └── parser.py          # Fault GeoJSON parser & bounding box filter
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── earthquake_event.py    # EarthquakeEvent PostGIS Point model
-│   │   └── fault_segment.py       # FaultSegment PostGIS MultiLineString model
+│   │   ├── earthquake_hazard_point.py # EarthquakeHazardPoint PostGIS Point model
+│   │   ├── fault_segment.py       # FaultSegment PostGIS MultiLineString model
+│   │   └── hazard_dataset.py      # HazardDataset normalized metadata model
 │   ├── repositories/
 │   │   ├── __init__.py
 │   │   ├── earthquake_event.py    # EarthquakeEvent database repository
+│   │   ├── earthquake_hazard.py   # EarthquakeHazardRepository for dataset & points
 │   │   └── fault_segment.py       # FaultSegment database repository & spatial queries
 │   ├── schemas/
 │   │   ├── __init__.py
-│   │   ├── earthquake_event.py    # EarthquakeEvent validation schemas
 │   │   ├── earthquake_api.py      # Public GeoJSON Feature & attribution schemas
+│   │   ├── earthquake_event.py    # EarthquakeEvent validation schemas
 │   │   ├── fault_line_api.py      # Public GeoJSON Feature / FeatureCollection schemas
 │   │   └── fault_segment.py       # Pydantic validation schemas
 │   ├── scripts/
 │   │   ├── __init__.py
 │   │   ├── import_gem_faults.py   # Developer CLI command to import GEM active faults
+│   │   ├── import_gem_hazard.py   # Developer CLI command to ingest GEM GSHM hazard points
 │   │   └── sync_afad_earthquakes.py # Developer CLI command to sync AFAD earthquakes
 │   └── services/
 │       ├── __init__.py
 │       ├── earthquake_query.py    # EarthquakeQueryService for GeoJSON response assembly
 │       ├── earthquake_sync.py     # EarthquakeSyncService with batch upsert & stats
 │       ├── fault_import.py        # FaultImportService with batch transaction & stats
-│       └── fault_query.py         # FaultQueryService for GeoJSON response assembly
+│       ├── fault_query.py         # FaultQueryService for GeoJSON response assembly
+│       └── hazard_import.py       # HazardImportService for idempotent hazard ingestion
 ├── data/                          # Geospatial dataset documentation & local storage
 │   ├── README.md
 │   └── turkey_boundary.geojson    # Natural Earth 1:50m country boundary polygon
 ├── docs/                          # Architecture specifications & ADRs
+│   ├── gem-gshm-v2026-1-artifact-inspection.md
+│   ├── earthquake-hazard-source-validation.md
 │   ├── geospatial-data-architecture.md
 │   └── adr/
 │       └── 0001-geospatial-data-sources.md
 ├── tests/
 │   ├── __init__.py
 │   ├── fixtures/
-│   │   ├── afad_events_sample.json # Sample test fixture from AFAD Event Web Service
-│   │   └── gem_faults_turkey_sample.json # Sample test fixture from GEM GAF
-│   ├── test_afad_adapter.py       # AFAD client & parser unit tests
-│   ├── test_config.py             # Database configuration tests
-│   ├── test_database_integration.py # Live PostgreSQL/PostGIS integration tests
-│   ├── test_db_session.py         # Session lifecycle tests
-│   ├── test_earthquake_api.py     # Earthquake REST API & proximity integration tests
-│   ├── test_earthquake_integration.py # EarthquakeEvent model & PostGIS integration tests
-│   ├── test_fault_lines_api.py    # Fault Lines REST API endpoint tests
-│   ├── test_fault_segment_integration.py # FaultSegment model & PostGIS integration tests
-│   ├── test_gem_adapter.py        # GEM parser & validation unit tests
-│   └── test_health.py             # Public health endpoint tests
-├── .env.example                   # Safe template for environment variables
-├── pyproject.toml                 # Dependencies, tool configurations
+│   │   ├── afad_events_sample.json
+│   │   └── gem_faults_turkey_sample.json
+│   ├── test_afad_adapter.py
+│   ├── test_config.py
+│   ├── test_database_integration.py
+│   ├── test_db_session.py
+│   ├── test_earthquake_api.py
+│   ├── test_earthquake_integration.py
+│   ├── test_fault_lines_api.py
+│   ├── test_fault_segment_integration.py
+│   ├── test_gem_adapter.py
+│   ├── test_hazard_adapter.py     # GEM hazard reader & synthetic GeoPackage unit tests
+│   ├── test_hazard_integration.py # Hazard models & idempotent import integration tests
+│   ├── test_hazard_models.py      # HazardDataset & EarthquakeHazardPoint schema tests
+│   └── test_health.py
+├── .env.example
+├── pyproject.toml
 └── README.md
 ```
 
@@ -307,6 +322,27 @@ python -m app.scripts.sync_afad_earthquakes --start "2024-01-01" --end "2024-06-
 
 - **Attribution**: *T.C. İçişleri Bakanlığı Afet ve Acil Durum Yönetimi Başkanlığı (AFAD) Deprem Dairesi Başkanlığı Event Web Servisi*.
 
+## Seismic Hazard Data Ingestion (GEM GSHM v2026.1)
+
+Seismic hazard data is ingested from the **GEM Global Seismic Hazard Map (v2026.1)** under the **CC BY-NC-SA 4.0** license for non-commercial development and competition use:
+
+- **Scientific Metric**: Peak Ground Acceleration (PGA) in units of $g$ (10% exceedance in 50 years / ~475-year return period, reference rock $V_{S,30} = 800\text{ m/s}$).
+- **Database Architecture**: Normalized two-table schema:
+  - `hazard_datasets`: Stores model provenance, return period, reference ground conditions, checksum, and licensing once.
+  - `earthquake_hazard_points`: Stores discrete grid nodes with `POINT(longitude latitude)` PostGIS geometry and `pga_g`.
+- **Idempotency**: Keyed on `UNIQUE (dataset_id, longitude, latitude)`. Re-running the importer verifies unchanged records and leaves existing data intact.
+
+```bash
+# Run idempotent GEM GSHM hazard ingestion from external cache:
+python -m app.scripts.import_gem_hazard --cache-dir "<external-hazard-cache-path>"
+
+# Or specify GeoPackage directly:
+python -m app.scripts.import_gem_hazard --gpkg-path "<path-to-gem_gshm_v2026.1.gpkg>"
+```
+
+- **Attribution**: *Global Seismic Hazard Map (v2026.1), Global Earthquake Model (GEM) Foundation (CC BY-NC-SA 4.0)*.
+- **Important**: GEM hazard points represent regional modeled reference rock ground motion at discrete nodes. They do not represent building safety, local soil amplification, or official regulatory Turkish hazard (TDTH).
+
 ## Public Geospatial REST API
 
 All public endpoints serve RFC 7946 compliant GeoJSON `FeatureCollection` or `Feature` structures with metadata describing data delivery, attribution, and disclaimers.
@@ -350,13 +386,12 @@ All public endpoints serve RFC 7946 compliant GeoJSON `FeatureCollection` or `Fe
 
 ## Current Phase
 
-This repository currently represents **Phase 7: Earthquake GeoJSON API, Recent Major Events, and Fault Spatial Proximity**.
+This repository currently represents **Phase 8B-3: GEM GSHM PostgreSQL/PostGIS Model, Migration, and Idempotent Importer**.
 
 At this stage:
-- The `fault_segments` and `earthquake_events` PostGIS models, indexes, and migrations (`0001` - `0003`) are operational.
-- The public Fault Lines GeoJSON API (`/api/v1/fault-lines`, `/nearby`, `/{fault_id}`) is operational.
-- The public Earthquake GeoJSON API (`/api/v1/earthquakes`, `/recent-major`, `/{event_id}`) is operational.
-- The fault-specific proximity endpoint (`/api/v1/fault-lines/{fault_id}/earthquakes`) is operational.
-- **Scheduled background workers** (Celery/Cron) have **NOT** been configured yet.
+- The `fault_segments`, `earthquake_events`, `hazard_datasets`, and `earthquake_hazard_points` PostGIS models, indexes, and migrations (`0001` - `0004`) are operational.
+- The public Fault Lines GeoJSON API is operational.
+- The public Earthquake GeoJSON API is operational.
+- The GEM hazard ingestion foundation is operational (`54,291` Türkiye-context points persisted).
+- **Public Earthquake Hazard API (`/api/v1/earthquake-hazards`)** is **NOT** exposed yet (designated for TASK 09).
 - **User authentication/accounts** and **AI disaster assistant** have **NOT** been implemented yet.
-
