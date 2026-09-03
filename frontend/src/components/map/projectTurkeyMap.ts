@@ -73,6 +73,8 @@ export type TurkeyMap = {
   /** Ready-to-use `viewBox` attribute value. */
   viewBox: string
   provinces: ProvincePath[]
+  /** The exact same fitted transform for additional geographic layers. */
+  projectPosition: (position: Position) => Point
 }
 
 export function projectProvinceShapes(shapes: readonly ProvinceShape[]): TurkeyMap {
@@ -135,5 +137,6 @@ export function projectProvinceShapes(shapes: readonly ProvinceShape[]): TurkeyM
     height,
     viewBox: `0 0 ${VIEWBOX_WIDTH} ${height.toFixed(PRECISION)}`,
     provinces,
+    projectPosition: (position) => toViewBox(project(position)),
   }
 }
