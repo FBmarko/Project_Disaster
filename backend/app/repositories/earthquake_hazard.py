@@ -2,9 +2,16 @@ import uuid
 from typing import Any
 
 from geoalchemy2.elements import WKTElement
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, insert, select, text
 from sqlalchemy.orm import Session
 
+from app.integrations.gem.hazard_constants import (
+    GEM_HAZARD_METRIC,
+    GEM_RETURN_PERIOD_YEARS,
+    GEM_SOURCE_NAME,
+    GEM_SOURCE_VERSION,
+    TURKEY_CONTEXT_SCOPE,
+)
 from app.integrations.gem.hazard_reader import GemHazardRecord
 from app.models.earthquake_hazard_point import EarthquakeHazardPoint
 from app.models.hazard_dataset import HazardDataset
@@ -95,6 +102,17 @@ class EarthquakeHazardRepository:
         self.session.flush()
         return dataset, True
 
+    def get_active_gem_dataset(self) -> HazardDataset | None:
+        """Fetch the active GEM GSHM v2026.1 dataset for the Türkiye context."""
+        stmt = select(HazardDataset).where(
+            HazardDataset.source == GEM_SOURCE_NAME,
+            HazardDataset.source_version == GEM_SOURCE_VERSION,
+            HazardDataset.hazard_metric == GEM_HAZARD_METRIC,
+            HazardDataset.return_period_years == GEM_RETURN_PERIOD_YEARS,
+            HazardDataset.ingest_scope == TURKEY_CONTEXT_SCOPE,
+        )
+        return self.session.scalar(stmt)
+
     def get_dataset_by_id(self, dataset_id: uuid.UUID) -> HazardDataset | None:
         """Fetch dataset metadata by UUID."""
         return self.session.get(HazardDataset, dataset_id)
@@ -148,3 +166,94 @@ class EarthquakeHazardRepository:
         stmt = insert(EarthquakeHazardPoint).values(payload)
         self.session.execute(stmt)
         return len(payload)
+
+    def find_nearest_hazard_point(
+        self,
+        dataset_id: uuid.UUID,
+        longitude: float,
+        latitude: float,
+        candidate_count: int = 32,
+    ) -> dict[str, Any] | None:
+        """Find nearest node using two-stage GiST KNN + exact geodesic distance."""
+        sql = text("""
+            WITH candidates AS (
+                SELECT id, source_record_id, longitude, latitude, pga_g, geometry
+                FROM earthquake_hazard_points
+                WHERE dataset_id = :dataset_id
+                ORDER BY geometry <-> ST_SetSRID(
+                    ST_MakePoint(:longitude, :latitude), 4326
+                )
+                LIMIT :candidate_count
+            )
+            SELECT id, source_record_id, longitude, latitude, pga_g,
+                   ST_Distance(
+                       geometry::geography,
+                       ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
+                   ) / 1000.0 AS distance_km
+            FROM candidates
+            ORDER BY distance_km, id
+            LIMIT 1;
+        """)
+        row = (
+            self.session.execute(
+                sql,
+                {
+                    "dataset_id": dataset_id,
+                    "longitude": longitude,
+                    "latitude": latitude,
+                    "candidate_count": candidate_count,
+                },
+            )
+            .mappings()
+            .first()
+        )
+
+        if row is None:
+            return None
+        return dict(row)
+
+    def list_hazard_points_in_bbox(
+        self,
+        dataset_id: uuid.UUID,
+        min_lon: float,
+        min_lat: float,
+        max_lon: float,
+        max_lat: float,
+        limit: int = 1000,
+        offset: int = 0,
+    ) -> tuple[list[dict[str, Any]], bool]:
+        """List hazard points within a bbox using PostGIS GiST envelope filtering.
+
+        Fetches limit + 1 records to determine has_more without a count query.
+        """
+        fetch_limit = limit + 1
+        sql = text("""
+            SELECT id, source_record_id, longitude, latitude, pga_g
+            FROM earthquake_hazard_points
+            WHERE dataset_id = :dataset_id
+              AND geometry && ST_MakeEnvelope(
+                  :min_lon, :min_lat, :max_lon, :max_lat, 4326
+              )
+            ORDER BY latitude, longitude
+            LIMIT :fetch_limit OFFSET :offset;
+        """)
+        rows = (
+            self.session.execute(
+                sql,
+                {
+                    "dataset_id": dataset_id,
+                    "min_lon": min_lon,
+                    "min_lat": min_lat,
+                    "max_lon": max_lon,
+                    "max_lat": max_lat,
+                    "fetch_limit": fetch_limit,
+                    "offset": offset,
+                },
+            )
+            .mappings()
+            .all()
+        )
+
+        has_more = len(rows) > limit
+        result_rows = [dict(r) for r in rows[:limit]]
+        return result_rows, has_more

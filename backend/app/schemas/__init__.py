@@ -33,6 +33,18 @@ from app.schemas.fault_segment import (
     FaultSegmentCreate,
     FaultSegmentRead,
 )
+from app.schemas.hazard_api import (
+    DEFAULT_HAZARD_ATTRIBUTION,
+    DEFAULT_HAZARD_DISCLAIMER,
+    DEFAULT_HAZARD_LICENSE,
+    DEFAULT_HAZARD_SOURCE,
+    HazardDatasetMetadataResponse,
+    HazardFeatureCollection,
+    HazardNearestFeature,
+    HazardPointFeature,
+    HazardPointGeometry,
+    HazardPointProperties,
+)
 
 __all__ = [
     "ASSOCIATION_METHOD_SPATIAL_PROXIMITY",
@@ -45,6 +57,10 @@ __all__ = [
     "DEFAULT_FAULT_DISCLAIMER",
     "DEFAULT_FAULT_LICENSE",
     "DEFAULT_FAULT_SOURCE",
+    "DEFAULT_HAZARD_ATTRIBUTION",
+    "DEFAULT_HAZARD_DISCLAIMER",
+    "DEFAULT_HAZARD_LICENSE",
+    "DEFAULT_HAZARD_SOURCE",
     "EarthquakeApiMetadata",
     "EarthquakeEventBase",
     "EarthquakeEventCreate",
@@ -61,5 +77,11 @@ __all__ = [
     "FaultSegmentCreate",
     "FaultSegmentRead",
     "GeoJSONMultiLineStringGeometry",
+    "HazardDatasetMetadataResponse",
+    "HazardFeatureCollection",
+    "HazardNearestFeature",
+    "HazardPointFeature",
+    "HazardPointGeometry",
+    "HazardPointProperties",
     "SCIENTIFIC_PROXIMITY_DISCLAIMER",
 ]

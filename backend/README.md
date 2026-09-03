@@ -138,6 +138,33 @@ Key details:
 - **Proximity Semantics**: The `radius_km` parameter represents geographic proximity only (not a hazard zone threshold).
 - **Attribution & Provenance**: Active fault data is sourced from GEM GAF-DB (CC BY-SA 4.0) intersecting the Natural Earth 1:50m Türkiye polygon. It is open research data for development/staging and is **not** official Turkish government / MTA fault data.
 
+### Earthquake Hazards REST API
+
+Public read-only endpoints serving seismic hazard data from the imported GEM Global Seismic Hazard Map (GSHM v2026.1):
+
+- `GET /api/v1/earthquake-hazards/dataset`: Retrieve full scientific provenance, reference rock parameters, DOIs, license, and bounds for the active dataset.
+  ```bash
+  curl http://127.0.0.1:8000/api/v1/earthquake-hazards/dataset
+  ```
+- `GET /api/v1/earthquake-hazards/nearest`: Query modeled PGA at the nearest discrete GEM source node to a coordinate:
+  ```bash
+  curl "http://127.0.0.1:8000/api/v1/earthquake-hazards/nearest?lat=39.93&lon=32.85"
+  ```
+- `GET /api/v1/earthquake-hazards`: Retrieve discrete GEM source nodes within a viewport bounding box as an RFC 7946 GeoJSON FeatureCollection:
+  ```bash
+  curl "http://127.0.0.1:8000/api/v1/earthquake-hazards?bbox=28.0,40.0,30.0,42.0&limit=1000&offset=0"
+  ```
+
+Key scientific semantics & details:
+- **Scientific Foundation**: Modeled Peak Ground Acceleration (PGA) in units of decimal $g$ for a 10% probability of exceedance in 50 years (approximately 475-year return period) under reference rock conditions ($V_{S,30} = 800\text{ m/s}$).
+- **Nearest-Node Semantics**: Returns the discrete modeled value at the nearest stored GEM source node along with the exact geodesic distance in kilometers between the requested coordinate and that node. Strictly avoids spatial interpolation or arbitrary distance cutoffs.
+- **Two-Stage Query Optimization & Empirical Validation**: Nearest lookup executes via a two-stage query (32-candidate GiST KNN set followed by exact PostGIS geography `ST_Distance` re-ranking with deterministic `id` tie-breaking). Empirically validated against the exact spheroidal-distance baseline with 0 mismatches across the evaluated 359-coordinate test set (local SQL execution benchmark ~0.15 ms vs ~105 ms baseline). This empirical validation is not a mathematical proof for every possible coordinate.
+- **Coverage Validation**: Coordinates and viewport bounding boxes must strictly fall within the imported Türkiye-context scope ($24.0..46.0^\circ\text{E}$, $34.0..44.0^\circ\text{N}$). Requests outside this scope return HTTP 422.
+- **Viewport Filtering & Pagination**: Uses PostGIS GiST spatial index envelope filtering (`&&`). Point-in-envelope candidate semantics are exact for discrete POINT geometries. Supports deterministic pagination via `limit` (1–2000, default 1000) and `offset` (default 0), returning a boolean `has_more` without redundant total count queries (local development benchmark: ~3.1 ms query time, ~223 KB payload for 1,000 points; ~418 KB for 2,000 points).
+- **Missing Dataset Failure Semantics**: If the required GEM dataset natural identity is absent from the database, all hazard endpoints return HTTP 503 Service Unavailable (*"Earthquake hazard dataset is currently unavailable."*).
+- **Scientific Disclaimers & Non-Causal Nature**: Values represent discrete reference-rock nodes and do NOT represent local soil amplification, building safety ratings, earthquake prediction, or official Turkish regulatory design values (AFAD TDTH / Decision 2018/11275).
+- **License & Attribution**: GEM GSHM v2026.1 is distributed under CC BY-NC-SA 4.0 for non-commercial development and research.
+
 ## Running Tests
 
 Run the unit test suite:
@@ -193,6 +220,7 @@ backend/
 │   │       ├── router.py          # v1 router (mounts endpoint routers)
 │   │       └── endpoints/
 │   │           ├── __init__.py
+│   │           ├── earthquake_hazards.py # Earthquake hazard API endpoints (dataset, nearest, bbox)
 │   │           ├── earthquakes.py # Earthquake GeoJSON & proximity API endpoints
 │   │           ├── fault_lines.py # Fault lines GeoJSON API endpoint router
 │   │           └── health.py      # Health check endpoint router
@@ -233,7 +261,8 @@ backend/
 │   │   ├── earthquake_api.py      # Public GeoJSON Feature & attribution schemas
 │   │   ├── earthquake_event.py    # EarthquakeEvent validation schemas
 │   │   ├── fault_line_api.py      # Public GeoJSON Feature / FeatureCollection schemas
-│   │   └── fault_segment.py       # Pydantic validation schemas
+│   │   ├── fault_segment.py       # Pydantic validation schemas
+│   │   └── hazard_api.py          # GeoJSON schemas & scientific disclaimers for hazards
 │   ├── scripts/
 │   │   ├── __init__.py
 │   │   ├── import_gem_faults.py   # Developer CLI command to import GEM active faults
@@ -245,7 +274,8 @@ backend/
 │       ├── earthquake_sync.py     # EarthquakeSyncService with batch upsert & stats
 │       ├── fault_import.py        # FaultImportService with batch transaction & stats
 │       ├── fault_query.py         # FaultQueryService for GeoJSON response assembly
-│       └── hazard_import.py       # HazardImportService for idempotent hazard ingestion
+│       ├── hazard_import.py       # HazardImportService for idempotent hazard ingestion
+│       └── hazard_query.py        # HazardQueryService for spatial lookup & GeoJSON assembly
 ├── data/                          # Geospatial dataset documentation & local storage
 │   ├── README.md
 │   └── turkey_boundary.geojson    # Natural Earth 1:50m country boundary polygon
@@ -270,6 +300,7 @@ backend/
 │   ├── test_fault_segment_integration.py
 │   ├── test_gem_adapter.py
 │   ├── test_hazard_adapter.py     # GEM hazard reader & synthetic GeoPackage unit tests
+│   ├── test_hazard_api.py         # Public hazard API endpoints & correctness tests
 │   ├── test_hazard_integration.py # Hazard models & idempotent import integration tests
 │   ├── test_hazard_models.py      # HazardDataset & EarthquakeHazardPoint schema tests
 │   └── test_health.py
