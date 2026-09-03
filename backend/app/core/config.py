@@ -1,3 +1,4 @@
+from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +10,25 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
+
+    # Database configuration (safe development defaults)
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "afet360"
+    POSTGRES_USER: str = "afet360"
+    POSTGRES_PASSWORD: str = "afet360_dev_password"
+    DATABASE_URL: str | None = None
+
+    @computed_field
+    @property
+    def SQLALCHEMY_DATABASE_URI(self) -> str:
+        """Derive the canonical SQLAlchemy database connection URI."""
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        return (
+            f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
 
     model_config = SettingsConfigDict(
         env_file=".env",
