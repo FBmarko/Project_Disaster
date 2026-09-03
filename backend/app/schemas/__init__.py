@@ -1,3 +1,8 @@
+from app.schemas.earthquake_event import (
+    EarthquakeEventBase,
+    EarthquakeEventCreate,
+    EarthquakeEventRead,
+)
 from app.schemas.fault_line_api import (
     DEFAULT_FAULT_ATTRIBUTION,
     DEFAULT_FAULT_DISCLAIMER,
@@ -20,6 +25,9 @@ __all__ = [
     "DEFAULT_FAULT_DISCLAIMER",
     "DEFAULT_FAULT_LICENSE",
     "DEFAULT_FAULT_SOURCE",
+    "EarthquakeEventBase",
+    "EarthquakeEventCreate",
+    "EarthquakeEventRead",
     "FaultAttributionMetadata",
     "FaultFeature",
     "FaultFeatureCollection",

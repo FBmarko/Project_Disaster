@@ -203,25 +203,35 @@ backend/
 │   │   ├── dependencies.py        # FastAPI get_db dependency
 │   │   └── readiness.py           # Database connectivity & PostGIS check
 │   ├── integrations/
+│   │   ├── afad/                  # Official AFAD Event Web Service adapter
+│   │   │   ├── __init__.py
+│   │   │   ├── client.py          # HTTP client with retries, timeout & pagination
+│   │   │   ├── mapping.py         # Timestamp UTC parser, context BBOX, attribution
+│   │   │   └── parser.py          # JSON parser & Pydantic schema validator
 │   │   └── gem/                   # GEM Global Active Faults adapter
 │   │       ├── __init__.py
 │   │       ├── mapping.py         # Field mapping & MultiLineString 2D normalization
 │   │       └── parser.py          # GeoJSON parser & bounding box filter
 │   ├── models/
 │   │   ├── __init__.py
-│   │   └── fault_segment.py       # FaultSegment PostGIS model
+│   │   ├── earthquake_event.py    # EarthquakeEvent PostGIS Point model
+│   │   └── fault_segment.py       # FaultSegment PostGIS MultiLineString model
 │   ├── repositories/
 │   │   ├── __init__.py
+│   │   ├── earthquake_event.py    # EarthquakeEvent database repository
 │   │   └── fault_segment.py       # FaultSegment database repository & spatial queries
 │   ├── schemas/
 │   │   ├── __init__.py
+│   │   ├── earthquake_event.py    # EarthquakeEvent validation schemas
 │   │   ├── fault_line_api.py      # Public GeoJSON Feature / FeatureCollection schemas
 │   │   └── fault_segment.py       # Pydantic validation schemas
 │   ├── scripts/
 │   │   ├── __init__.py
-│   │   └── import_gem_faults.py   # Developer CLI command to import GEM active faults
+│   │   ├── import_gem_faults.py   # Developer CLI command to import GEM active faults
+│   │   └── sync_afad_earthquakes.py # Developer CLI command to sync AFAD earthquakes
 │   └── services/
 │       ├── __init__.py
+│       ├── earthquake_sync.py     # EarthquakeSyncService with batch upsert & stats
 │       ├── fault_import.py        # FaultImportService with batch transaction & stats
 │       └── fault_query.py         # FaultQueryService for GeoJSON response assembly
 ├── data/                          # Geospatial dataset documentation & local storage
@@ -234,10 +244,13 @@ backend/
 ├── tests/
 │   ├── __init__.py
 │   ├── fixtures/
+│   │   ├── afad_events_sample.json # Sample test fixture from AFAD Event Web Service
 │   │   └── gem_faults_turkey_sample.json # Sample test fixture from GEM GAF
+│   ├── test_afad_adapter.py       # AFAD client & parser unit tests
 │   ├── test_config.py             # Database configuration tests
 │   ├── test_database_integration.py # Live PostgreSQL/PostGIS integration tests
 │   ├── test_db_session.py         # Session lifecycle tests
+│   ├── test_earthquake_integration.py # EarthquakeEvent model & PostGIS integration tests
 │   ├── test_fault_lines_api.py    # Fault Lines REST API endpoint tests
 │   ├── test_fault_segment_integration.py # FaultSegment model & PostGIS integration tests
 │   ├── test_gem_adapter.py        # GEM parser & validation unit tests
@@ -272,13 +285,34 @@ python -m app.scripts.import_gem_faults --file path/to/faults.geojson --turkey-o
 - **Attribution Requirement**: Visualizations and API responses derived from GEM GAF must include attribution to the Global Earthquake Model Foundation.
 - **Administrative Boundary**: Country boundary filtering uses the Natural Earth 1:50m open country-boundary polygon (`ne_50m_admin_0_countries`, Public Domain). It is a generalized cartographic boundary, not an official Turkish government boundary source.
 
+## Earthquake Data Synchronization (AFAD Event Web Service)
+
+Major earthquake events ($M \ge 5.0$) are ingested from the official **AFAD Deprem Dairesi Başkanlığı Event Web Service** (`https://deprem.afad.gov.tr/apiv2/event/filter`).
+
+- **Epicenter Geometry**: Persisted as PostGIS `POINT(longitude latitude)` in WGS84 (SRID 4326), indexed with a GiST spatial index.
+- **Timestamp Semantics**: Upstream AFAD API timestamps are confirmed to represent UTC and are normalized into timezone-aware UTC `occurred_at` datetimes.
+- **Tectonic Context Scope (`turkey-context`)**: Bounded by `[24.0°E, 34.0°N, 46.0°E, 44.0°N]`, encompassing the Anatolian tectonic plate and immediate offshore seismic sources.
+- **Idempotent Synchronization**: Keyed on unique `(source, source_event_id)`. Re-syncing preserves existing records and updates revised solutions without generating duplicates.
+
+```bash
+# Synchronize M >= 5.0 earthquakes for a bounded time window:
+python -m app.scripts.sync_afad_earthquakes --start "2023-01-01 00:00:00" --end "2024-01-01 00:00:00" --min-magnitude 5.0 --scope turkey-context
+
+# Custom magnitude threshold or global scope:
+python -m app.scripts.sync_afad_earthquakes --start "2024-01-01" --end "2024-06-01" --min-magnitude 4.5 --scope all
+```
+
+- **Attribution**: *T.C. İçişleri Bakanlığı Afet ve Acil Durum Yönetimi Başkanlığı (AFAD) Deprem Dairesi Başkanlığı Event Web Servisi*.
+
 ## Current Phase
 
-This repository currently represents **Phase 5: Fault Lines GeoJSON REST API**.
+This repository currently represents **Phase 6: AFAD EarthquakeEvent Domain Model and Major-Earthquake Ingestion Foundation**.
 
 At this stage:
-- The `fault_segments` database model, spatial GiST indexes, Alembic migrations, Pydantic schemas, GEM GAF adapter, and idempotent import pipeline are established and live-verified.
-- **Public Fault Lines REST API endpoints** (`GET /api/v1/fault-lines`, `/nearby`, `/{fault_id}`) are implemented, live-verified, and served in RFC 7946 GeoJSON format.
-- **Earthquake event models, APIs, and synchronizers** have **NOT** been implemented yet (scheduled for subsequent phases).
+- The `fault_segments` database model, GiST spatial index, and public Fault Lines GeoJSON REST API (`/api/v1/fault-lines`, `/nearby`, `/{fault_id}`) are operational and tested.
+- The `earthquake_events` database model, GiST point index, Alembic migration (`0003_create_earthquake_events`), AFAD HTTP client, parser, idempotent sync service, and developer synchronization command are implemented and live-verified.
+- **Public Earthquake REST API endpoints** (`/api/v1/earthquakes`) have **NOT** been implemented yet (scheduled for Phase 7).
+- **Fault-earthquake proximity calculations** have **NOT** been implemented yet.
+- **Scheduled background workers** (Celery/Cron) have **NOT** been configured yet.
 - **User authentication/accounts** and **AI disaster assistant** have **NOT** been implemented yet.
 
