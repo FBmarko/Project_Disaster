@@ -1,11 +1,15 @@
 import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.v1.endpoints.earthquakes import validate_temporal_params
 from app.db.dependencies import get_db
+from app.schemas.earthquake_api import EarthquakeFeatureCollection
 from app.schemas.fault_line_api import FaultFeature, FaultFeatureCollection
+from app.services.earthquake_query import EarthquakeQueryService
 from app.services.fault_query import FaultQueryService
 
 router = APIRouter()
@@ -190,3 +194,109 @@ def get_fault_line_by_id(
             detail=f"Fault line with id '{fault_id}' not found",
         )
     return feature
+
+
+@router.get(
+    "/{fault_id}/earthquakes",
+    response_model=EarthquakeFeatureCollection,
+    summary="Get earthquakes near a mapped fault trace",
+    description=(
+        "Retrieve earthquake epicenters within a caller-specified geographic distance "
+        "(max_distance_km) of this mapped fault trace from the locally synchronized "
+        "AFAD snapshot. Mandatory note: spatial proximity does not establish that "
+        "the earthquake ruptured on or was caused by this fault."
+    ),
+    responses={
+        404: {
+            "description": "Fault line with the specified UUID was not found",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Fault line with id '...' not found"}
+                }
+            },
+        }
+    },
+)
+def get_earthquakes_near_fault(
+    fault_id: Annotated[
+        uuid.UUID,
+        Path(description="Unique AFET360 internal UUID of the target fault segment"),
+    ],
+    max_distance_km: Annotated[
+        float,
+        Query(
+            description=(
+                "Maximum geographic proximity radius in km "
+                "(required, 0 < max_distance_km <= 500.0)"
+            ),
+            gt=0.0,
+            le=500.0,
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+    min_magnitude: Annotated[
+        float,
+        Query(
+            description="Minimum magnitude threshold (default: 5.0)",
+            ge=-2.0,
+            le=10.0,
+        ),
+    ] = 5.0,
+    start_time: Annotated[
+        datetime | None,
+        Query(
+            description=(
+                "Start timestamp filter (timezone-aware UTC, e.g. 2026-01-01T00:00:00Z)"
+            ),
+        ),
+    ] = None,
+    end_time: Annotated[
+        datetime | None,
+        Query(
+            description=(
+                "End timestamp filter (timezone-aware UTC, e.g. 2026-01-02T00:00:00Z)"
+            ),
+        ),
+    ] = None,
+    limit: Annotated[
+        int,
+        Query(
+            description="Maximum number of features to return (1-500, default: 100)",
+            ge=1,
+            le=500,
+        ),
+    ] = 100,
+    offset: Annotated[
+        int,
+        Query(description="Pagination offset index (default: 0)", ge=0),
+    ] = 0,
+    order_by: Annotated[
+        str,
+        Query(
+            description=(
+                "Sort ordering: 'recent' (default, newest first) or 'distance' "
+                "(closest first)"
+            ),
+            pattern="^(recent|distance)$",
+        ),
+    ] = "recent",
+) -> EarthquakeFeatureCollection:
+    """Retrieve earthquakes within max_distance_km of the specified fault trace."""
+    validate_temporal_params(start_time, end_time)
+    service = EarthquakeQueryService(db)
+    result = service.list_earthquakes_near_fault(
+        fault_id=fault_id,
+        max_distance_km=max_distance_km,
+        min_magnitude=min_magnitude,
+        start_time=start_time,
+        end_time=end_time,
+        limit=limit,
+        offset=offset,
+        order_by=order_by,
+    )
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fault line with id '{fault_id}' not found",
+        )
+    return result

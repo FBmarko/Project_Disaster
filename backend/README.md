@@ -223,6 +223,7 @@ backend/
 │   ├── schemas/
 │   │   ├── __init__.py
 │   │   ├── earthquake_event.py    # EarthquakeEvent validation schemas
+│   │   ├── earthquake_api.py      # Public GeoJSON Feature & attribution schemas
 │   │   ├── fault_line_api.py      # Public GeoJSON Feature / FeatureCollection schemas
 │   │   └── fault_segment.py       # Pydantic validation schemas
 │   ├── scripts/
@@ -231,6 +232,7 @@ backend/
 │   │   └── sync_afad_earthquakes.py # Developer CLI command to sync AFAD earthquakes
 │   └── services/
 │       ├── __init__.py
+│       ├── earthquake_query.py    # EarthquakeQueryService for GeoJSON response assembly
 │       ├── earthquake_sync.py     # EarthquakeSyncService with batch upsert & stats
 │       ├── fault_import.py        # FaultImportService with batch transaction & stats
 │       └── fault_query.py         # FaultQueryService for GeoJSON response assembly
@@ -250,6 +252,7 @@ backend/
 │   ├── test_config.py             # Database configuration tests
 │   ├── test_database_integration.py # Live PostgreSQL/PostGIS integration tests
 │   ├── test_db_session.py         # Session lifecycle tests
+│   ├── test_earthquake_api.py     # Earthquake REST API & proximity integration tests
 │   ├── test_earthquake_integration.py # EarthquakeEvent model & PostGIS integration tests
 │   ├── test_fault_lines_api.py    # Fault Lines REST API endpoint tests
 │   ├── test_fault_segment_integration.py # FaultSegment model & PostGIS integration tests
@@ -304,15 +307,56 @@ python -m app.scripts.sync_afad_earthquakes --start "2024-01-01" --end "2024-06-
 
 - **Attribution**: *T.C. İçişleri Bakanlığı Afet ve Acil Durum Yönetimi Başkanlığı (AFAD) Deprem Dairesi Başkanlığı Event Web Servisi*.
 
+## Public Geospatial REST API
+
+All public endpoints serve RFC 7946 compliant GeoJSON `FeatureCollection` or `Feature` structures with metadata describing data delivery, attribution, and disclaimers.
+
+### 1. Earthquakes API (`/api/v1/earthquakes`)
+
+- **List earthquakes with magnitude, temporal, and bounding box filters**:
+  ```bash
+  GET /api/v1/earthquakes?min_magnitude=5.0&limit=50
+  GET /api/v1/earthquakes?bbox=28.0,40.0,30.0,42.0
+  GET /api/v1/earthquakes?start_time=2023-01-01T00:00:00Z&end_time=2023-12-31T23:59:59Z
+  ```
+
+- **List recent major earthquakes (default: M>=5.0, past 365 days)**:
+  ```bash
+  GET /api/v1/earthquakes/recent-major
+  ```
+
+- **Recent major earthquakes with optional fault proximity filter**:
+  ```bash
+  GET /api/v1/earthquakes/recent-major?max_distance_km=25
+  ```
+  Returns recent major earthquakes within 25 km of any mapped fault trace, enriched with `nearest_fault_id`, `nearest_fault_source_feature_id`, `distance_to_fault_km`, and non-causal disclaimer.
+
+- **Get single earthquake feature**:
+  ```bash
+  GET /api/v1/earthquakes/{event_id}
+  ```
+
+### 2. Fault Proximity Earthquakes (`/api/v1/fault-lines/{fault_id}/earthquakes`)
+
+- **Find earthquakes within a caller-specified radius of a specific fault**:
+  ```bash
+  GET /api/v1/fault-lines/{fault_id}/earthquakes?max_distance_km=25&min_magnitude=5.0
+  ```
+  Supports sorting by `order_by=recent` (default) or `order_by=distance`.
+
+> [!IMPORTANT]
+> **Scientific Non-Causal Policy**:
+> Spatial proximity (`distance_to_fault_km`) is a geographic measurement between an earthquake epicenter Point and a surface-mapped fault trace. **Spatial proximity does not establish that the earthquake ruptured on or was caused by that fault.** The API strictly uses `association_method = "spatial_proximity"`.
+
 ## Current Phase
 
-This repository currently represents **Phase 6: AFAD EarthquakeEvent Domain Model and Major-Earthquake Ingestion Foundation**.
+This repository currently represents **Phase 7: Earthquake GeoJSON API, Recent Major Events, and Fault Spatial Proximity**.
 
 At this stage:
-- The `fault_segments` database model, GiST spatial index, and public Fault Lines GeoJSON REST API (`/api/v1/fault-lines`, `/nearby`, `/{fault_id}`) are operational and tested.
-- The `earthquake_events` database model, GiST point index, Alembic migration (`0003_create_earthquake_events`), AFAD HTTP client, parser, idempotent sync service, and developer synchronization command are implemented and live-verified.
-- **Public Earthquake REST API endpoints** (`/api/v1/earthquakes`) have **NOT** been implemented yet (scheduled for Phase 7).
-- **Fault-earthquake proximity calculations** have **NOT** been implemented yet.
+- The `fault_segments` and `earthquake_events` PostGIS models, indexes, and migrations (`0001` - `0003`) are operational.
+- The public Fault Lines GeoJSON API (`/api/v1/fault-lines`, `/nearby`, `/{fault_id}`) is operational.
+- The public Earthquake GeoJSON API (`/api/v1/earthquakes`, `/recent-major`, `/{event_id}`) is operational.
+- The fault-specific proximity endpoint (`/api/v1/fault-lines/{fault_id}/earthquakes`) is operational.
 - **Scheduled background workers** (Celery/Cron) have **NOT** been configured yet.
 - **User authentication/accounts** and **AI disaster assistant** have **NOT** been implemented yet.
 

@@ -1,8 +1,10 @@
 import uuid
 from collections.abc import Sequence
+from datetime import datetime
+from typing import Any
 
 from geoalchemy2.elements import WKTElement
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.models.earthquake_event import EarthquakeEvent
@@ -21,7 +23,7 @@ class EarthquakeEventRepository:
         self.session = session
 
     def get_by_id(self, event_id: uuid.UUID) -> EarthquakeEvent | None:
-        """Fetch a single earthquake event by its internal UUID."""
+        """Fetch a single earthquake event entity by its internal UUID."""
         return self.session.get(EarthquakeEvent, event_id)
 
     def get_by_source_event_id(
@@ -40,6 +42,222 @@ class EarthquakeEventRepository:
         if source:
             stmt = stmt.where(EarthquakeEvent.source == source)
         return self.session.scalar(stmt) or 0
+
+    def get_by_id_with_geojson(self, event_id: uuid.UUID) -> dict[str, Any] | None:
+        """Fetch a single earthquake event with PostGIS GeoJSON geometry."""
+        query = text("""
+            SELECT
+                e.id, e.source, e.source_event_id, e.occurred_at, e.depth_km,
+                e.magnitude, e.magnitude_type, e.location_name, e.country,
+                e.province, e.district, e.neighborhood,
+                ST_AsGeoJSON(e.geometry) as geojson
+            FROM earthquake_events e
+            WHERE e.id = :event_id;
+        """)
+        row = self.session.execute(query, {"event_id": event_id}).mappings().first()
+        return dict(row) if row else None
+
+    def list_events(
+        self,
+        min_magnitude: float | None = None,
+        max_magnitude: float | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        magnitude_type: str | None = None,
+        bbox: tuple[float, float, float, float] | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Query earthquake events with spatial, temporal, and magnitude filters."""
+        clauses = ["1=1"]
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+
+        if min_magnitude is not None:
+            clauses.append("e.magnitude >= :min_mag")
+            params["min_mag"] = min_magnitude
+        if max_magnitude is not None:
+            clauses.append("e.magnitude <= :max_mag")
+            params["max_mag"] = max_magnitude
+        if start_time is not None:
+            clauses.append("e.occurred_at >= :start_time")
+            params["start_time"] = start_time
+        if end_time is not None:
+            clauses.append("e.occurred_at <= :end_time")
+            params["end_time"] = end_time
+        if magnitude_type is not None:
+            clauses.append("e.magnitude_type = :mag_type")
+            params["mag_type"] = magnitude_type.upper()
+        if bbox is not None:
+            min_lon, min_lat, max_lon, max_lat = bbox
+            clauses.append(
+                "ST_Intersects(e.geometry, "
+                "ST_MakeEnvelope(:min_lon, :min_lat, :max_lon, :max_lat, 4326))"
+            )
+            params.update(
+                {
+                    "min_lon": min_lon,
+                    "min_lat": min_lat,
+                    "max_lon": max_lon,
+                    "max_lat": max_lat,
+                }
+            )
+
+        where_clause = " AND ".join(clauses)
+        query = text(f"""
+            SELECT
+                e.id, e.source, e.source_event_id, e.occurred_at, e.depth_km,
+                e.magnitude, e.magnitude_type, e.location_name, e.country,
+                e.province, e.district, e.neighborhood,
+                ST_AsGeoJSON(e.geometry) as geojson
+            FROM earthquake_events e
+            WHERE {where_clause}
+            ORDER BY e.occurred_at DESC
+            LIMIT :limit OFFSET :offset;
+        """)
+        rows = self.session.execute(query, params).mappings().fetchall()
+        return [dict(r) for r in rows]
+
+    def list_recent_major(
+        self,
+        since: datetime,
+        min_magnitude: float = 5.0,
+        max_distance_km: float | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """List recent major earthquakes, optionally near mapped faults."""
+        if max_distance_km is None:
+            query = text("""
+                SELECT
+                    e.id, e.source, e.source_event_id, e.occurred_at, e.depth_km,
+                    e.magnitude, e.magnitude_type, e.location_name, e.country,
+                    e.province, e.district, e.neighborhood,
+                    ST_AsGeoJSON(e.geometry) as geojson,
+                    NULL as nearest_fault_id,
+                    NULL as nearest_fault_source_feature_id,
+                    NULL as distance_to_fault_km
+                FROM earthquake_events e
+                WHERE e.magnitude >= :min_mag
+                  AND e.occurred_at >= :since
+                ORDER BY e.occurred_at DESC
+                LIMIT :limit OFFSET :offset;
+            """)
+            params = {
+                "min_mag": min_magnitude,
+                "since": since,
+                "limit": limit,
+                "offset": offset,
+            }
+            rows = self.session.execute(query, params).mappings().fetchall()
+            return [dict(r) for r in rows]
+
+        # When max_distance_km is supplied: index-assisted LATERAL join
+        radius_meters = max_distance_km * 1000.0
+        query = text("""
+            SELECT
+                e.id, e.source, e.source_event_id, e.occurred_at, e.depth_km,
+                e.magnitude, e.magnitude_type, e.location_name, e.country,
+                e.province, e.district, e.neighborhood,
+                ST_AsGeoJSON(e.geometry) as geojson,
+                nf.fault_id as nearest_fault_id,
+                nf.source_feature_id as nearest_fault_source_feature_id,
+                nf.dist_meters / 1000.0 as distance_to_fault_km
+            FROM earthquake_events e
+            CROSS JOIN LATERAL (
+                SELECT
+                    f.id as fault_id,
+                    f.source_feature_id,
+                    ST_Distance(
+                        f.geometry::geography, e.geometry::geography
+                    ) as dist_meters
+                FROM fault_segments f
+                WHERE f.geometry && ST_Envelope(
+                    ST_Buffer(e.geometry::geography, :radius_meters)::geometry
+                )
+                AND ST_DWithin(
+                    f.geometry::geography,
+                    e.geometry::geography,
+                    :radius_meters
+                )
+                ORDER BY dist_meters ASC
+                LIMIT 1
+            ) nf
+            WHERE e.magnitude >= :min_mag
+              AND e.occurred_at >= :since
+            ORDER BY e.occurred_at DESC
+            LIMIT :limit OFFSET :offset;
+        """)
+        params = {
+            "radius_meters": radius_meters,
+            "min_mag": min_magnitude,
+            "since": since,
+            "limit": limit,
+            "offset": offset,
+        }
+        rows = self.session.execute(query, params).mappings().fetchall()
+        return [dict(r) for r in rows]
+
+    def list_near_fault(
+        self,
+        fault_id: uuid.UUID,
+        max_distance_km: float,
+        min_magnitude: float = 5.0,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        limit: int = 100,
+        offset: int = 0,
+        order_by: str = "recent",
+    ) -> list[dict[str, Any]]:
+        """List earthquakes within max_distance_km of a specific mapped fault."""
+        radius_meters = max_distance_km * 1000.0
+
+        clauses = [
+            (
+                "e.geometry && ST_Envelope("
+                "ST_Buffer(f.geometry::geography, :radius_meters)::geometry)"
+            ),
+            "ST_DWithin(e.geometry::geography, f.geometry::geography, :radius_meters)",
+            "e.magnitude >= :min_mag",
+        ]
+        params: dict[str, Any] = {
+            "fault_id": fault_id,
+            "radius_meters": radius_meters,
+            "min_mag": min_magnitude,
+            "limit": limit,
+            "offset": offset,
+        }
+
+        if start_time is not None:
+            clauses.append("e.occurred_at >= :start_time")
+            params["start_time"] = start_time
+        if end_time is not None:
+            clauses.append("e.occurred_at <= :end_time")
+            params["end_time"] = end_time
+
+        where_clause = " AND ".join(clauses)
+        order_clause = (
+            "distance_to_fault_km ASC, e.occurred_at DESC"
+            if order_by == "distance"
+            else "e.occurred_at DESC"
+        )
+
+        query = text(f"""
+            SELECT
+                e.id, e.source, e.source_event_id, e.occurred_at, e.depth_km,
+                e.magnitude, e.magnitude_type, e.location_name, e.country,
+                e.province, e.district, e.neighborhood,
+                ST_AsGeoJSON(e.geometry) as geojson,
+                ST_Distance(
+                    e.geometry::geography, f.geometry::geography
+                ) / 1000.0 as distance_to_fault_km
+            FROM earthquake_events e
+            JOIN fault_segments f ON f.id = :fault_id
+            WHERE {where_clause}
+            ORDER BY {order_clause}
+            LIMIT :limit OFFSET :offset;
+        """)
+        rows = self.session.execute(query, params).mappings().fetchall()
+        return [dict(r) for r in rows]
 
     def upsert_batch(
         self,

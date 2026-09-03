@@ -1,3 +1,17 @@
+from app.schemas.earthquake_api import (
+    ASSOCIATION_METHOD_SPATIAL_PROXIMITY,
+    DEFAULT_AFAD_ATTRIBUTION,
+    DEFAULT_AFAD_DATASET,
+    DEFAULT_AFAD_DISCLAIMER,
+    DEFAULT_AFAD_SOURCE,
+    DEFAULT_DATA_DELIVERY,
+    SCIENTIFIC_PROXIMITY_DISCLAIMER,
+    EarthquakeApiMetadata,
+    EarthquakeFeature,
+    EarthquakeFeatureCollection,
+    EarthquakeFeatureProperties,
+    EarthquakePointGeometry,
+)
 from app.schemas.earthquake_event import (
     EarthquakeEventBase,
     EarthquakeEventCreate,
@@ -21,13 +35,24 @@ from app.schemas.fault_segment import (
 )
 
 __all__ = [
+    "ASSOCIATION_METHOD_SPATIAL_PROXIMITY",
+    "DEFAULT_AFAD_ATTRIBUTION",
+    "DEFAULT_AFAD_DATASET",
+    "DEFAULT_AFAD_DISCLAIMER",
+    "DEFAULT_AFAD_SOURCE",
+    "DEFAULT_DATA_DELIVERY",
     "DEFAULT_FAULT_ATTRIBUTION",
     "DEFAULT_FAULT_DISCLAIMER",
     "DEFAULT_FAULT_LICENSE",
     "DEFAULT_FAULT_SOURCE",
+    "EarthquakeApiMetadata",
     "EarthquakeEventBase",
     "EarthquakeEventCreate",
     "EarthquakeEventRead",
+    "EarthquakeFeature",
+    "EarthquakeFeatureCollection",
+    "EarthquakeFeatureProperties",
+    "EarthquakePointGeometry",
     "FaultAttributionMetadata",
     "FaultFeature",
     "FaultFeatureCollection",
@@ -36,4 +61,5 @@ __all__ = [
     "FaultSegmentCreate",
     "FaultSegmentRead",
     "GeoJSONMultiLineStringGeometry",
+    "SCIENTIFIC_PROXIMITY_DISCLAIMER",
 ]
