@@ -1,0 +1,44 @@
+@import 'tailwindcss';
+
+/* AFET360 design tokens.
+   Exposed as Tailwind theme variables, so `bg-brand-red`, `text-text-secondary`
+   etc. are available as utilities. */
+@theme {
+  --color-brand-red: #ef2b2d;
+  --color-brand-red-soft: rgba(239, 43, 45, 0.08);
+
+  --color-surface: #f8fafc;
+  --color-card: #ffffff;
+
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
+
+  --color-border-subtle: #e5e7eb;
+
+  --color-risk-low: #22c55e;
+  --color-risk-medium: #f59e0b;
+  --color-risk-high: #ef4444;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    font-family:
+      'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Keep a visible focus ring for keyboard users. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-red);
+    outline-offset: 2px;
+  }
+}
