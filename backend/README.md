@@ -116,6 +116,28 @@ Response:
 }
 ```
 
+### Fault Lines REST API
+
+Public read-only endpoints serving active fault segments as standard RFC 7946 GeoJSON:
+
+- `GET /api/v1/fault-lines`: List active fault features (supports optional `bbox=min_lon,min_lat,max_lon,max_lat`, `fault_type`, and `limit`)
+  ```bash
+  curl "http://127.0.0.1:8000/api/v1/fault-lines?bbox=28.0,40.0,30.0,41.5&limit=100"
+  ```
+- `GET /api/v1/fault-lines/nearby`: Query fault segments within a required geodesic radius (in km) from a WGS84 point
+  ```bash
+  curl "http://127.0.0.1:8000/api/v1/fault-lines/nearby?latitude=40.99&longitude=29.03&radius_km=50"
+  ```
+- `GET /api/v1/fault-lines/{fault_id}`: Retrieve a single fault segment feature by its AFET360 internal UUID
+  ```bash
+  curl http://127.0.0.1:8000/api/v1/fault-lines/0f2943fd-5947-450b-88e5-ca7e68036d9b
+  ```
+
+Key details:
+- **Coordinate Order**: Strictly follows RFC 7946 GeoJSON format: `[longitude, latitude]`.
+- **Proximity Semantics**: The `radius_km` parameter represents geographic proximity only (not a hazard zone threshold).
+- **Attribution & Provenance**: Active fault data is sourced from GEM GAF-DB (CC BY-SA 4.0) intersecting the Natural Earth 1:50m Türkiye polygon. It is open research data for development/staging and is **not** official Turkish government / MTA fault data.
+
 ## Running Tests
 
 Run the unit test suite:
@@ -169,6 +191,7 @@ backend/
 │   │       ├── router.py          # v1 router (mounts endpoint routers)
 │   │       └── endpoints/
 │   │           ├── __init__.py
+│   │           ├── fault_lines.py # Fault lines GeoJSON API endpoint router
 │   │           └── health.py      # Health check endpoint router
 │   ├── core/
 │   │   ├── __init__.py
@@ -189,18 +212,21 @@ backend/
 │   │   └── fault_segment.py       # FaultSegment PostGIS model
 │   ├── repositories/
 │   │   ├── __init__.py
-│   │   └── fault_segment.py       # FaultSegment database repository & batch upsert
+│   │   └── fault_segment.py       # FaultSegment database repository & spatial queries
 │   ├── schemas/
 │   │   ├── __init__.py
+│   │   ├── fault_line_api.py      # Public GeoJSON Feature / FeatureCollection schemas
 │   │   └── fault_segment.py       # Pydantic validation schemas
 │   ├── scripts/
 │   │   ├── __init__.py
 │   │   └── import_gem_faults.py   # Developer CLI command to import GEM active faults
 │   └── services/
 │       ├── __init__.py
-│       └── fault_import.py        # FaultImportService with batch transaction & stats
+│       ├── fault_import.py        # FaultImportService with batch transaction & stats
+│       └── fault_query.py         # FaultQueryService for GeoJSON response assembly
 ├── data/                          # Geospatial dataset documentation & local storage
-│   └── README.md
+│   ├── README.md
+│   └── turkey_boundary.geojson    # Natural Earth 1:50m country boundary polygon
 ├── docs/                          # Architecture specifications & ADRs
 │   ├── geospatial-data-architecture.md
 │   └── adr/
@@ -212,6 +238,7 @@ backend/
 │   ├── test_config.py             # Database configuration tests
 │   ├── test_database_integration.py # Live PostgreSQL/PostGIS integration tests
 │   ├── test_db_session.py         # Session lifecycle tests
+│   ├── test_fault_lines_api.py    # Fault Lines REST API endpoint tests
 │   ├── test_fault_segment_integration.py # FaultSegment model & PostGIS integration tests
 │   ├── test_gem_adapter.py        # GEM parser & validation unit tests
 │   └── test_health.py             # Public health endpoint tests
@@ -247,10 +274,11 @@ python -m app.scripts.import_gem_faults --file path/to/faults.geojson --turkey-o
 
 ## Current Phase
 
-This repository currently represents **Phase 4: Fault Segment Domain Model and GEM Active Fault Import Pipeline**.
+This repository currently represents **Phase 5: Fault Lines GeoJSON REST API**.
 
 At this stage:
 - The `fault_segments` database model, spatial GiST indexes, Alembic migrations, Pydantic schemas, GEM GAF adapter, and idempotent import pipeline are established and live-verified.
-- **Public Fault Lines REST API endpoints** (e.g. `GET /api/v1/fault-lines`) are **NOT** implemented yet (scheduled for Phase 5).
+- **Public Fault Lines REST API endpoints** (`GET /api/v1/fault-lines`, `/nearby`, `/{fault_id}`) are implemented, live-verified, and served in RFC 7946 GeoJSON format.
 - **Earthquake event models, APIs, and synchronizers** have **NOT** been implemented yet (scheduled for subsequent phases).
+- **User authentication/accounts** and **AI disaster assistant** have **NOT** been implemented yet.
 

@@ -1,8 +1,9 @@
 import uuid
 from collections.abc import Sequence
 
+from geoalchemy2 import Geography, Geometry
 from geoalchemy2.elements import WKTElement
-from sqlalchemy import func, select
+from sqlalchemy import cast, func, select
 from sqlalchemy.orm import Session
 
 from app.models.fault_segment import FaultSegment
@@ -26,11 +27,26 @@ class FaultSegmentRepository:
         self.session = session
 
     def get_by_id(self, segment_id: uuid.UUID) -> FaultSegment | None:
+        """Fetch a single fault segment entity by its primary key UUID."""
         return self.session.get(FaultSegment, segment_id)
+
+    def get_by_id_with_geojson(
+        self, segment_id: uuid.UUID
+    ) -> tuple[FaultSegment, str] | None:
+        """Fetch a fault segment and its PostGIS GeoJSON geometry string by UUID."""
+        stmt = select(
+            FaultSegment,
+            func.ST_AsGeoJSON(FaultSegment.geometry).label("geojson"),
+        ).where(FaultSegment.id == segment_id)
+        row = self.session.execute(stmt).first()
+        if not row:
+            return None
+        return row[0], row[1]
 
     def get_by_source_feature_id(
         self, source: str, source_feature_id: str
     ) -> FaultSegment | None:
+        """Fetch a fault segment by its source catalog identity."""
         stmt = select(FaultSegment).where(
             FaultSegment.source == source,
             FaultSegment.source_feature_id == source_feature_id,
@@ -38,10 +54,90 @@ class FaultSegmentRepository:
         return self.session.scalar(stmt)
 
     def count(self, source: str | None = None) -> int:
+        """Count total persisted fault segment records."""
         stmt = select(func.count(FaultSegment.id))
         if source:
             stmt = stmt.where(FaultSegment.source == source)
         return self.session.scalar(stmt) or 0
+
+    def list_faults(
+        self,
+        bbox: tuple[float, float, float, float] | None = None,
+        fault_type: str | None = None,
+        limit: int = 1000,
+    ) -> list[tuple[FaultSegment, str]]:
+        """Query fault segments with optional bounding box and fault type filters.
+
+        Uses the PostGIS GiST index via ST_Intersects(geometry, ST_MakeEnvelope(...)).
+
+        Returns:
+            List of tuples: (FaultSegment, geojson_geometry_string)
+        """
+        stmt = select(
+            FaultSegment,
+            func.ST_AsGeoJSON(FaultSegment.geometry).label("geojson"),
+        )
+
+        if bbox is not None:
+            min_lon, min_lat, max_lon, max_lat = bbox
+            envelope = func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
+            stmt = stmt.where(func.ST_Intersects(FaultSegment.geometry, envelope))
+
+        if fault_type is not None:
+            stmt = stmt.where(FaultSegment.fault_type == fault_type)
+
+        stmt = stmt.order_by(FaultSegment.source_feature_id.asc()).limit(limit)
+        rows = self.session.execute(stmt).all()
+        return [(r[0], r[1]) for r in rows]
+
+    def find_nearby(
+        self,
+        latitude: float,
+        longitude: float,
+        radius_km: float,
+        limit: int = 20,
+    ) -> list[tuple[FaultSegment, str, float]]:
+        """Find fault segments within a geodesic radius from a WGS84 point.
+
+        Uses a two-stage spatial filter:
+        1. Coarse index-assisted envelope filter via GiST index on geometry (&&).
+        2. Exact geodesic distance filter using geography ST_DWithin and ST_Distance.
+
+        Returns:
+            List of tuples: (FaultSegment, geojson_geometry_string, distance_km)
+        """
+        query_point = func.ST_SetSRID(func.ST_MakePoint(longitude, latitude), 4326)
+        point_geog = cast(query_point, Geography)
+        geom_geog = cast(FaultSegment.geometry, Geography)
+
+        radius_meters = radius_km * 1000.0
+
+        # Stage 1: Envelope of geodesic buffer for index-assisted GiST bounding
+        envelope_geom = func.ST_Envelope(
+            cast(func.ST_Buffer(point_geog, radius_meters), Geometry)
+        )
+
+        # Stage 2: Exact geodesic distance calculation
+        distance_km = (func.ST_Distance(geom_geog, point_geog) / 1000.0).label(
+            "distance_km"
+        )
+
+        stmt = (
+            select(
+                FaultSegment,
+                func.ST_AsGeoJSON(FaultSegment.geometry).label("geojson"),
+                distance_km,
+            )
+            .where(
+                FaultSegment.geometry.op("&&")(envelope_geom),
+                func.ST_DWithin(geom_geog, point_geog, radius_meters),
+            )
+            .order_by(distance_km.asc())
+            .limit(limit)
+        )
+
+        rows = self.session.execute(stmt).all()
+        return [(r[0], r[1], float(r[2])) for r in rows]
 
     def upsert_batch(
         self,
@@ -58,7 +154,6 @@ class FaultSegmentRepository:
         source = records[0].source
         source_ids = [r.source_feature_id for r in records]
 
-        # Fetch existing records in this batch
         stmt = select(FaultSegment).where(
             FaultSegment.source == source,
             FaultSegment.source_feature_id.in_(source_ids),
@@ -76,7 +171,6 @@ class FaultSegmentRepository:
             existing = existing_records.get(record.source_feature_id)
 
             if existing is None:
-                # Insert new entity
                 new_segment = FaultSegment(
                     source=record.source,
                     source_feature_id=record.source_feature_id,
@@ -91,7 +185,6 @@ class FaultSegmentRepository:
                 self.session.add(new_segment)
                 inserted += 1
             else:
-                # Check if mutable properties changed
                 has_changes = (
                     existing.name != record.name
                     or existing.segment_name != record.segment_name
