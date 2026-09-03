@@ -28,6 +28,7 @@ npm run dev
 | `npm run lint`    | oxlint                            |
 | `npm run validate:provinces` | 81 il ve SVG projeksiyonu |
 | `npm run validate:faults` | Gerçek fay verisi, kaynak bütünlüğü ve ortak projeksiyon |
+| `npm run validate:simulation` | Simülasyon taslağı doğrulama ve durum geçişleri |
 
 ## Klasör Yapısı
 
@@ -82,3 +83,29 @@ Kaynakta bu segmentlerin isimleri bulunmadığından kaynak kimlikleri gösteril
 Şehir ve geçmiş deprem bölümleri backend entegrasyonunu bekler; bu bilgiler için
 örnek deprem veya bilimsel ilişki üretilmemiştir. HomePage risk örnekleri aynıdır.
 Kaynak, lisans, tekrar üretim ve filtreleme ayrıntıları: [data-sources.md](docs/data-sources.md).
+
+## Deprem Simülasyonu — Step 4
+
+`/simulation`, `@vis.gl/react-google-maps` ile Google Maps JavaScript API'yi
+gösterir. Kullanıcı haritaya tıkladığında tek bir konum işaretçisi tutulur ve
+koordinatlar yalnızca gösterimde dört ondalık basamağa yuvarlanır. Ayarlar
+4.0–8.0 Mw büyüklük kaydırıcısı, 5/10/20/30 km derinlik seçenekleri ve
+25/50/100/150 km inceleme yarıçapı sunar.
+
+Gerçek anahtarı hiçbir zaman repoya eklemeyin. `.env.local` içinde:
+
+```env
+VITE_GOOGLE_MAPS_API_KEY=...
+VITE_GOOGLE_MAPS_MAP_ID=... # isteğe bağlı; üretim için önerilir
+```
+
+Tarayıcı tabanlı Google Maps anahtarları istemciye teslim edildiği için Google
+Cloud Console'da HTTP referrer ve yalnızca Maps JavaScript API kısıtlarıyla
+sınırlandırılmalıdır. Anahtar yoksa sayfa harita isteği yapmadan açık bir
+yapılandırma durumu gösterir. Harita yalnızca `roadmap`, tıklama ve tek bir
+AdvancedMarker kullanır; Places, Geocoding, Directions, geolocation ve benzeri
+servisler çağrılmaz.
+
+Başlat düğmesi yerel taslağı doğrular ve sadece backend entegrasyonu bekleniyor
+mesajını gösterir. Bir endpoint çağrılmaz, sonuç üretilmez ve veri saklanmaz.
+Uygulama/dogrulama ayrıntıları: [simulation-validation.md](docs/simulation-validation.md).
