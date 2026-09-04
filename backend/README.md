@@ -165,6 +165,34 @@ Key scientific semantics & details:
 - **Scientific Disclaimers & Non-Causal Nature**: Values represent discrete reference-rock nodes and do NOT represent local soil amplification, building safety ratings, earthquake prediction, or official Turkish regulatory design values (AFAD TDTH / Decision 2018/11275).
 - **License & Attribution**: GEM GSHM v2026.1 is distributed under CC BY-NC-SA 4.0 for non-commercial development and research.
 
+### Emergency Assembly Areas REST API
+
+Public read-only endpoints serving emergency gathering points from the imported OpenStreetMap snapshot (`emergency=assembly_point`):
+
+- `GET /api/v1/assembly-areas/dataset`: Retrieve comprehensive provenance, ODbL 1.0 license, OpenStreetMap contributors attribution, timestamps, cryptographic SHA-256 checksum, and geometry counts (discrete Points and closed Polygons) for the active dataset.
+  ```bash
+  curl http://127.0.0.1:8000/api/v1/assembly-areas/dataset
+  ```
+- `GET /api/v1/assembly-areas/nearby`: Query emergency assembly areas within a required geodesic radius (in km) from a WGS84 coordinate:
+  ```bash
+  curl "http://127.0.0.1:8000/api/v1/assembly-areas/nearby?lat=41.01&lon=28.97&radius_km=5.0&limit=20"
+  ```
+- `GET /api/v1/assembly-areas`: Retrieve emergency assembly areas as an RFC 7946 GeoJSON FeatureCollection with optional viewport bounding box filter:
+  ```bash
+  curl "http://127.0.0.1:8000/api/v1/assembly-areas?bbox=28.8,40.9,29.2,41.2&limit=1000"
+  ```
+
+Key geospatial details & operational semantics:
+- **Geometry Preservation**: Preserves native PostGIS `Point` (650) and `Polygon` (28) geometries without centroid flattening or loss of spatial boundaries.
+- **Exact Proximity Calculation**: Distance is calculated directly using PostGIS spheroidal geography (`ST_DWithin` and `ST_Distance`) on the WGS84 ellipsoid without lossy degree-based bounding box prefilters. For Polygon geometries, distance represents the minimum geodesic distance to the polygon boundary; for coordinates inside a polygon, distance is exactly `0.0`.
+- **Distance Output Resolution**: The `distance_km` field is serialized to 3 decimal places (0.001 km output resolution / approximately metre-level displayed resolution; this reflects output precision and carries no claim of geodetic survey-grade real-world accuracy).
+- **Canonical Bounding Box Contract**: Follows the canonical AFET360 viewport parameter `bbox=min_lon,min_lat,max_lon,max_lat`. Inverted bounds or malformed values fail closed with HTTP 422.
+- **Technical Radius Ceiling**: Proximity search enforces $0 < \text{radius\_km} \le 200\text{ km}$ as a technical API resource ceiling to protect computational resources, never as operational evacuation guidance.
+- **Privacy & Security Defense**: Strictly whitelists public properties (`source_feature_id`, `name`, `ref`, `operator`, plus `distance_km` in nearby queries). Internal columns (`dataset_id`, `created_at`, `updated_at`, `source_properties`), local file system paths, and unapproved OSM tags are never exposed.
+- **Deterministic Resolution & Availability**: Multiple dataset records are resolved deterministically by `source_data_timestamp DESC, snapshot_retrieved_at DESC, created_at DESC, id DESC`. If no dataset exists, all endpoints return HTTP 503 Service Unavailable (*"Assembly area dataset is currently unavailable."*).
+- **Non-Officiality Disclaimer**: Community-mapped data from OpenStreetMap. This dataset is geographically incomplete, may include facility-specific muster points, is NOT official Turkish government / AFAD disaster gathering area data (*"Afet ve Acil Durum Toplanma Alanları"*), and carries no guarantees regarding structural safety, current accessibility, or safe evacuation routes.
+- **License & Attribution**: OpenStreetMap data is licensed under the Open Data Commons Open Database License (ODbL 1.0) by the OpenStreetMap Foundation (OSMF). Attribution: *"© OpenStreetMap contributors"*. Required for any frontend view displaying this data.
+
 ## Running Tests
 
 Run the unit test suite:
@@ -221,6 +249,7 @@ backend/
 │   │       ├── router.py          # v1 router (mounts endpoint routers)
 │   │       └── endpoints/
 │   │           ├── __init__.py
+│   │           ├── assembly_areas.py # Emergency assembly areas REST API (dataset, nearby, bbox)
 │   │           ├── earthquake_hazards.py # Earthquake hazard API endpoints (dataset, nearest, bbox)
 │   │           ├── earthquakes.py # Earthquake GeoJSON & proximity API endpoints
 │   │           ├── fault_lines.py # Fault lines GeoJSON API endpoint router
@@ -267,6 +296,7 @@ backend/
 │   │   └── fault_segment.py       # FaultSegment database repository & spatial queries
 │   ├── schemas/
 │   │   ├── __init__.py
+│   │   ├── assembly_api.py        # Public GeoJSON Feature / Nearby schemas & metadata
 │   │   ├── earthquake_api.py      # Public GeoJSON Feature & attribution schemas
 │   │   ├── earthquake_event.py    # EarthquakeEvent validation schemas
 │   │   ├── fault_line_api.py      # Public GeoJSON Feature / FeatureCollection schemas
@@ -281,6 +311,7 @@ backend/
 │   └── services/
 │       ├── __init__.py
 │       ├── assembly_import.py     # AssemblyImportService for idempotent OSM ingestion
+│       ├── assembly_query.py      # AssemblyQueryService for GeoJSON collection & proximity queries
 │       ├── earthquake_query.py    # EarthquakeQueryService for GeoJSON response assembly
 │       ├── earthquake_sync.py     # EarthquakeSyncService with batch upsert & stats
 │       ├── fault_import.py        # FaultImportService with batch transaction & stats

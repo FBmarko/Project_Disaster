@@ -92,9 +92,12 @@ def test_assembly_area_columns_created_at_and_updated_at() -> None:
     assert updated_at_col.onupdate is not None
 
 
-def test_no_assembly_api_routes_exposed() -> None:
-    """OpenAPI schema must strictly contain 11 paths and zero assembly routes."""
+def test_assembly_api_routes_exposed() -> None:
+    """OpenAPI schema must strictly contain 14 paths and exactly 3 assembly routes."""
     openapi_paths = list(app.openapi()["paths"].keys())
-    assert len(openapi_paths) == 11
+    assert len(openapi_paths) == 14
     assembly_paths = [p for p in openapi_paths if "assembly" in p.lower()]
-    assert len(assembly_paths) == 0
+    assert len(assembly_paths) == 3
+    assert "/api/v1/assembly-areas/dataset" in assembly_paths
+    assert "/api/v1/assembly-areas/nearby" in assembly_paths
+    assert "/api/v1/assembly-areas" in assembly_paths
