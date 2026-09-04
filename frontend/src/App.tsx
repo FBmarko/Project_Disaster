@@ -7,7 +7,6 @@ import { FaultLinesPage } from '@/pages/FaultLinesPage'
 import { HomePage } from '@/pages/HomePage'
 import { PreparednessGuidePage } from '@/pages/PreparednessGuidePage'
 import { SimulationPage } from '@/pages/SimulationPage'
-import { SimulationResultsPage } from '@/pages/SimulationResultsPage'
 
 export default function App() {
   return (
@@ -19,10 +18,6 @@ export default function App() {
           <Route path={ROUTES.simulation} element={<SimulationPage />} />
           <Route path={ROUTES.preparednessGuide} element={<PreparednessGuidePage />} />
           <Route path={ROUTES.assemblyAreas} element={<AssemblyAreasPage />} />
-          <Route
-            path={ROUTES.simulationResults}
-            element={<SimulationResultsPage />}
-          />
           <Route path={ROUTES.about} element={<AboutPage />} />
           <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
         </Route>

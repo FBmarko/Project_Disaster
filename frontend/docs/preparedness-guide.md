@@ -1,8 +1,9 @@
 # Preparedness Guide — Step 6
 
 Route: `/preparedness-guide`. The primary sidebar now uses Hazırlık Rehberi in
-place of Simülasyon Sonuçları. The existing `/simulation-results` route and page
-remain unchanged. Assembly Areas is reserved for Step 7.
+place of Simülasyon Sonuçları. Step 9 removes the cancelled `/simulation-results`
+route and placeholder page. Assembly Areas is available at `/assembly-areas`.
+See [backend-integration.md](backend-integration.md) for the current API audit.
 
 ## Current form lifecycle
 

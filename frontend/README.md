@@ -29,6 +29,8 @@ npm run dev
 | `npm run validate:provinces` | 81 il ve SVG projeksiyonu |
 | `npm run validate:faults` | Gerçek fay verisi, kaynak bütünlüğü ve ortak projeksiyon |
 | `npm run validate:simulation` | Simülasyon taslağı doğrulama ve durum geçişleri |
+| `npm run validate:preparedness` | Hazırlık profili doğrulama ve durum geçişleri |
+| `npm run validate:assembly` | Toplanma alanı, arama ve konum doğrulama |
 
 ## Klasör Yapısı
 
@@ -43,7 +45,7 @@ src/
 │   └── simulation/      simülasyon bileşenleri (ileride)
 ├── constants/           colors.ts, routes.ts
 ├── hooks/
-├── pages/               5 sayfa bileşeni
+├── pages/               6 sayfa bileşeni
 ├── services/
 └── types/
 ```
@@ -57,13 +59,19 @@ src/
 | `/`                  | Ana Sayfa              |
 | `/fault-lines`       | Fay Hatları            |
 | `/simulation`        | Deprem Simülasyonu     |
-| `/simulation-results`| Simülasyon Sonuçları   |
+| `/preparedness-guide`| Hazırlık Rehberi        |
+| `/assembly-areas`    | Toplanma Alanları      |
 | `/about`             | Hakkında               |
 
 ## Tasarım Referansları
 
 `docs/ui-reference/` altındaki görseller yalnızca tasarım referansıdır; uygulama
 içinde `<img>` olarak kullanılmaz.
+
+## Entegrasyon dokümantasyonu
+
+Mevcut backend sözleşmeleri, özellik bazında kullanılabilirlik, ortam değişkenleri
+ve doğrulama sonuçları: [backend-integration.md](docs/backend-integration.md).
 
 ## Sınırlar
 
