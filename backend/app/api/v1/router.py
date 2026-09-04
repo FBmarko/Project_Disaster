@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    ai,
     assembly_areas,
     earthquake_hazards,
     earthquakes,
@@ -25,4 +26,9 @@ v1_router.include_router(
     assembly_areas.router,
     prefix="/assembly-areas",
     tags=["Assembly Areas"],
+)
+v1_router.include_router(
+    ai.router,
+    prefix="/ai",
+    tags=["AI Preparedness Guide"],
 )

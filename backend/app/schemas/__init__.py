@@ -1,3 +1,12 @@
+from app.schemas.ai import (
+    DEFAULT_AI_DISCLAIMER_EN,
+    DEFAULT_AI_DISCLAIMER_TR,
+    DisasterType,
+    PreparednessGuideContent,
+    PreparednessGuideRequest,
+    PreparednessGuideResponse,
+    SupportedLanguage,
+)
 from app.schemas.assembly_api import (
     DEFAULT_ASSEMBLY_ATTRIBUTION,
     DEFAULT_ASSEMBLY_CLASSIFICATION,
@@ -83,6 +92,8 @@ __all__ = [
     "DEFAULT_AFAD_DATASET",
     "DEFAULT_AFAD_DISCLAIMER",
     "DEFAULT_AFAD_SOURCE",
+    "DEFAULT_AI_DISCLAIMER_EN",
+    "DEFAULT_AI_DISCLAIMER_TR",
     "DEFAULT_ASSEMBLY_ATTRIBUTION",
     "DEFAULT_ASSEMBLY_CLASSIFICATION",
     "DEFAULT_ASSEMBLY_DISCLAIMER",
@@ -101,6 +112,7 @@ __all__ = [
     "DEFAULT_HAZARD_SOURCE",
     "DEFAULT_LABEL_EN",
     "DEFAULT_LABEL_TR",
+    "DisasterType",
     "EarthquakeApiMetadata",
     "EarthquakeEventBase",
     "EarthquakeEventCreate",
@@ -125,5 +137,9 @@ __all__ = [
     "HazardPointFeature",
     "HazardPointGeometry",
     "HazardPointProperties",
+    "PreparednessGuideContent",
+    "PreparednessGuideRequest",
+    "PreparednessGuideResponse",
     "SCIENTIFIC_PROXIMITY_DISCLAIMER",
+    "SupportedLanguage",
 ]
