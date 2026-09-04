@@ -207,7 +207,8 @@ backend/
 │       ├── 0001_enable_postgis.py        # Initial migration enabling PostGIS
 │       ├── 0002_create_fault_segments.py # FaultSegment table & spatial GiST index
 │       ├── 0003_create_earthquake_events.py # EarthquakeEvent table & GiST index
-│       └── 0004_create_hazard_tables.py # HazardDataset & EarthquakeHazardPoint tables
+│       ├── 0004_create_hazard_tables.py # HazardDataset & EarthquakeHazardPoint tables
+│       └── 0005_create_assembly_tables.py # AssemblyAreaDataset & AssemblyArea tables
 ├── alembic.ini                    # Alembic configuration
 ├── app/
 │   ├── __init__.py
@@ -239,20 +240,28 @@ backend/
 │   │   │   ├── client.py          # HTTP client with retries, timeout & pagination
 │   │   │   ├── mapping.py         # Timestamp UTC parser, context BBOX, attribution
 │   │   │   └── parser.py          # JSON parser & Pydantic schema validator
-│   │   └── gem/                   # GEM Global Active Faults & GSHM hazard adapters
+│   │   ├── gem/                   # GEM Global Active Faults & GSHM hazard adapters
+│   │   │   ├── __init__.py
+│   │   │   ├── hazard_constants.py # GSHM v2026.1 scientific metadata & specs
+│   │   │   ├── hazard_reader.py   # RTree GeoPackage streaming reader & validator
+│   │   │   ├── mapping.py         # Fault mapping & MultiLineString 2D normalization
+│   │   │   └── parser.py          # Fault GeoJSON parser & bounding box filter
+│   │   └── osm/                   # OpenStreetMap assembly area snapshot ingestion
 │   │       ├── __init__.py
-│   │       ├── hazard_constants.py # GSHM v2026.1 scientific metadata & specs
-│   │       ├── hazard_reader.py   # RTree GeoPackage streaming reader & validator
-│   │       ├── mapping.py         # Fault mapping & MultiLineString 2D normalization
-│   │       └── parser.py          # Fault GeoJSON parser & bounding box filter
+│   │       ├── osm_constants.py   # ODbL provenance, contracts, and tag allowlists
+│   │       ├── osm_reader.py      # Strict JSON snapshot parser and geometry builder
+│   │       └── osm_sanitizer.py   # Allowlist-first tag sanitizer and PII defense
 │   ├── models/
 │   │   ├── __init__.py
+│   │   ├── assembly_area.py       # AssemblyArea PostGIS Point/Polygon model
+│   │   ├── assembly_area_dataset.py # AssemblyAreaDataset normalized provenance model
 │   │   ├── earthquake_event.py    # EarthquakeEvent PostGIS Point model
 │   │   ├── earthquake_hazard_point.py # EarthquakeHazardPoint PostGIS Point model
 │   │   ├── fault_segment.py       # FaultSegment PostGIS MultiLineString model
 │   │   └── hazard_dataset.py      # HazardDataset normalized metadata model
 │   ├── repositories/
 │   │   ├── __init__.py
+│   │   ├── assembly_area.py       # AssemblyAreaRepository for dataset & areas
 │   │   ├── earthquake_event.py    # EarthquakeEvent database repository
 │   │   ├── earthquake_hazard.py   # EarthquakeHazardRepository for dataset & points
 │   │   └── fault_segment.py       # FaultSegment database repository & spatial queries
@@ -267,9 +276,11 @@ backend/
 │   │   ├── __init__.py
 │   │   ├── import_gem_faults.py   # Developer CLI command to import GEM active faults
 │   │   ├── import_gem_hazard.py   # Developer CLI command to ingest GEM GSHM hazard points
+│   │   ├── import_osm_assembly_areas.py # Developer CLI command to import OSM assembly areas
 │   │   └── sync_afad_earthquakes.py # Developer CLI command to sync AFAD earthquakes
 │   └── services/
 │       ├── __init__.py
+│       ├── assembly_import.py     # AssemblyImportService for idempotent OSM ingestion
 │       ├── earthquake_query.py    # EarthquakeQueryService for GeoJSON response assembly
 │       ├── earthquake_sync.py     # EarthquakeSyncService with batch upsert & stats
 │       ├── fault_import.py        # FaultImportService with batch transaction & stats
@@ -280,11 +291,14 @@ backend/
 │   ├── README.md
 │   └── turkey_boundary.geojson    # Natural Earth 1:50m country boundary polygon
 ├── docs/                          # Architecture specifications & ADRs
+│   ├── assembly-area-source-validation.md
+│   ├── osm-turkey-assembly-point-snapshot-characterization.md
 │   ├── gem-gshm-v2026-1-artifact-inspection.md
 │   ├── earthquake-hazard-source-validation.md
 │   ├── geospatial-data-architecture.md
 │   └── adr/
-│       └── 0001-geospatial-data-sources.md
+│       ├── 0001-geospatial-data-sources.md
+│       └── 0002-assembly-area-data-source.md
 ├── tests/
 │   ├── __init__.py
 │   ├── fixtures/
@@ -303,7 +317,11 @@ backend/
 │   ├── test_hazard_api.py         # Public hazard API endpoints & correctness tests
 │   ├── test_hazard_integration.py # Hazard models & idempotent import integration tests
 │   ├── test_hazard_models.py      # HazardDataset & EarthquakeHazardPoint schema tests
-│   └── test_health.py
+│   ├── test_health.py
+│   ├── test_osm_assembly_integration.py # OSM assembly models & idempotent import tests
+│   ├── test_osm_assembly_models.py # AssemblyArea & Dataset schema & API boundary tests
+│   ├── test_osm_assembly_reader.py # OSM JSON parser & geometry contract unit tests
+│   └── test_osm_assembly_sanitizer.py # OSM tag allowlist & PII sanitizer unit tests
 ├── .env.example
 ├── pyproject.toml
 └── README.md
@@ -415,14 +433,47 @@ All public endpoints serve RFC 7946 compliant GeoJSON `FeatureCollection` or `Fe
 > **Scientific Non-Causal Policy**:
 > Spatial proximity (`distance_to_fault_km`) is a geographic measurement between an earthquake epicenter Point and a surface-mapped fault trace. **Spatial proximity does not establish that the earthquake ruptured on or was caused by that fault.** The API strictly uses `association_method = "spatial_proximity"`.
 
+## Emergency Assembly Area Ingestion (OpenStreetMap Snapshot)
+
+Emergency assembly areas are ingested from an authoritative, pre-captured **OpenStreetMap (OSM)** snapshot under the **ODbL 1.0** license:
+
+- **Source**: OpenStreetMap
+- **Data Provider**: OpenStreetMap contributors
+- **Source Classification**: `community_open_data`
+- **License**: Open Data Commons Open Database License 1.0 (ODbL 1.0)
+- **Attribution**: `© OpenStreetMap contributors`
+- **Source Reference**: [https://www.openstreetmap.org/copyright](https://www.openstreetmap.org/copyright)
+- **Database Architecture**: Normalized two-table PostGIS schema:
+  - `assembly_area_datasets`: Stores provenance, snapshot SHA-256 (`23b86cfc29f3...`), size (179,012 bytes), timestamps, Overpass extraction query, and source metadata.
+  - `assembly_areas`: Stores individual assembly area features with `source_feature_id` (e.g. `node/123`, `way/456`), normalized `name`, `ref`, `operator`, PostGIS `GEOMETRY(Geometry, 4326)` (Point or Polygon), sanitized `source_properties` JSONB, `created_at`, and `updated_at`.
+- **Idempotency & Integrity**: Bounded by `UNIQUE (source, snapshot_sha256)` on datasets and `UNIQUE (dataset_id, source_feature_id)` on features. Re-importing detects provenance and geometry/attribute drift, failing closed on unexpected mutations and safely no-oping on identical reruns.
+
+```bash
+# Run reproducible OSM snapshot importer:
+python -m app.scripts.import_osm_assembly_areas --snapshot "<path-to-snapshot.json>"
+
+# Example using authoritative local cache:
+python -m app.scripts.import_osm_assembly_areas --snapshot "$env:LOCALAPPDATA\AFET360\assembly-cache\osm_turkey_emergency_assembly_point_20260904T084910Z.json"
+```
+
+### Key Operating & Semantic Principles
+- **Snapshot-Based Ingestion**: The importer operates exclusively on pre-captured, checksum-verified local snapshots.
+- **Zero Runtime Overpass Dependency**: Ingestion and application execution have no runtime or import-time network dependency on third-party public Overpass API endpoints.
+- **Approved Snapshot Scope**: The current approved snapshot contains exactly **678 features** (650 nodes / Points, 28 closed ways / Polygons, 0 relations) across Türkiye.
+- **Raw Snapshot Git Exclusion**: The raw JSON snapshot artifact remains strictly outside the Git repository in external cache storage (`%LOCALAPPDATA%\AFET360\assembly-cache\...`) to preserve repository hygiene.
+- **Neutral Community Terminology & Non-Official Nature**: Assembly area data represents community-mapped gathering points (`emergency=assembly_point`) from OpenStreetMap. **This data is NOT official Turkish government / AFAD disaster gathering area data** (*"Afet ve Acil Durum Toplanma Alanları"*). It does not carry official emergency management verification, structural safety clearance, or safe-route guarantees.
+- **Internal Staging Boundary**: Public assembly-area API routes (`/api/v1/assembly-areas`) are **not yet added** to FastAPI; the tables currently serve as internal persistence/staging. Public API endpoints and compliance headers are scheduled for TASK 10B-2B.
+
 ## Current Phase
 
-This repository currently represents **Phase 8B-3: GEM GSHM PostgreSQL/PostGIS Model, Migration, and Idempotent Importer**.
+This repository currently represents **Phase 10B-2A: Assembly Area Persistence + Reproducible OSM Snapshot Importer**.
 
 At this stage:
-- The `fault_segments`, `earthquake_events`, `hazard_datasets`, and `earthquake_hazard_points` PostGIS models, indexes, and migrations (`0001` - `0004`) are operational.
-- The public Fault Lines GeoJSON API is operational.
-- The public Earthquake GeoJSON API is operational.
-- The GEM hazard ingestion foundation is operational (`54,291` Türkiye-context points persisted).
-- **Public Earthquake Hazard API (`/api/v1/earthquake-hazards`)** is **NOT** exposed yet (designated for TASK 09).
+- PostGIS database migrations (`0001` - `0005`) are fully applied and operational.
+- Public Fault Lines GeoJSON API (`/api/v1/fault-lines`) is operational.
+- Public Earthquake GeoJSON & Proximity API (`/api/v1/earthquakes`) is operational.
+- Public Earthquake Hazard GeoJSON API (`/api/v1/earthquake-hazards`) is operational (11 total OpenAPI endpoints).
+- GEM GSHM hazard dataset and 54,291 Türkiye-context hazard points are persisted and active.
+- OpenStreetMap assembly area dataset provenance and 678 assembly features (650 Points, 28 Polygons) are persisted and verified.
+- **Public Assembly Area REST API (`/api/v1/assembly-areas`)** is **NOT** exposed yet (designated for TASK 10B-2B).
 - **User authentication/accounts** and **AI disaster assistant** have **NOT** been implemented yet.
