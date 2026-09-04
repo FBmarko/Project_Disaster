@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "afet360_dev_password"
     DATABASE_URL: str | None = None
 
+    # AI Provider configuration (Google Gemini)
+    GEMINI_API_KEY: str | None = None
+    GEMINI_MODEL: str = "gemini-3.8-flash"
+    GEMINI_TIMEOUT_SECONDS: float = 30.0
+
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

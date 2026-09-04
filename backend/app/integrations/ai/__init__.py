@@ -7,12 +7,14 @@ from app.integrations.ai.exceptions import (
     AIProviderMalformedOutputError,
     AIProviderUnavailableError,
 )
+from app.integrations.ai.gemini import GeminiPreparednessAIProvider
 from app.integrations.ai.policy import PreparednessSafetyPolicy
 
 __all__ = [
     "AIProviderError",
     "AIProviderMalformedOutputError",
     "AIProviderUnavailableError",
+    "GeminiPreparednessAIProvider",
     "PreparednessAIProvider",
     "PreparednessSafetyPolicy",
     "get_ai_provider",

@@ -26,12 +26,18 @@ client = TestClient(app)
 # ==============================================================================
 
 
-def test_default_production_behavior_returns_503_unavailable() -> None:
+def test_default_production_behavior_returns_503_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """In production default state (no provider), endpoint returns HTTP 503.
 
     This ensures that fake test content is NEVER returned in production claiming
     to be real AI generation.
     """
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
+
     # Ensure no dependency override is active
     app.dependency_overrides.pop(get_ai_provider, None)
 

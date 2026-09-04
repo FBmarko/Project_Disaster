@@ -278,10 +278,26 @@ Key contract specifications & safety architecture:
   - Never diagnose medical conditions, prescribe medications, or claim professional medical authority (general emergency guidance such as checking for injuries, calling 112, keeping a first-aid kit, and following responders is permitted).
 - **Accessibility-Aware Guidance**: The safety policy permits inclusive preparedness guidance for children, older adults, people with disabilities, and pets within existing structured sections, without collecting sensitive medical or personal health profiles.
 - **Server-Attached Disclaimers**: Every response includes `generated_by_ai: true` and an authoritative, language-matched disclaimer (`DEFAULT_AI_DISCLAIMER_TR` or `DEFAULT_AI_DISCLAIMER_EN`) added exclusively by the server layer.
-- **Production Default (HTTP 503) & Safety Defense**: In production, where no real external AI provider is configured, the endpoint returns HTTP 503 Service Unavailable (`{"detail": "AI preparedness service is currently unavailable."}`). Test/dummy content is **never** returned in production to prevent misrepresenting mock data as live AI advice.
+- **Production Default (HTTP 503) & Safety Defense**: In production, where no real external AI provider is configured (i.e. `GEMINI_API_KEY` is unset or blank), the endpoint returns HTTP 503 Service Unavailable (`{"detail": "AI preparedness service is currently unavailable."}`). Test/dummy content is **never** returned in production to prevent misrepresenting mock data as live AI advice.
 - **Provider Abstraction & Testing Architecture**: The system uses `PreparednessAIProvider` (ABC) with dependency injection via FastAPI's `get_ai_provider`. A deterministic test stub (`StubPreparednessAIProvider`) lives strictly in the test suite (`tests/fakes/ai.py`) for offline testing, simulating successful responses, upstream service errors (HTTP 502), unavailabilities (HTTP 503), and malformed payloads (HTTP 502).
+- **Production Google Gemini Integration (TASK 11B)**:
+  - **Provider**: Google Gemini API via the official modern `google-genai` SDK (`from google import genai`).
+  - **API Contract**: Uses Gemini's modern Interactions API (`client.interactions.create`) with single-turn, stateless execution.
+  - **Default Model**: `gemini-3.8-flash` (configurable via `GEMINI_MODEL`).
+  - **Stateless Privacy (`store=False`)**: AFET360 uses `store=False` for Gemini interactions and does not maintain application-level conversation history or persist generated guides.
+  - **Structured Outputs**: Outputs are constrained to `PreparednessGuideContent` JSON Schema via `response_format` and defended in depth by local Pydantic validation.
+  - **Latency & Predictability**: Configured with `thinking_level="low"`, `max_output_tokens=2500`, and configurable request timeout (`GEMINI_TIMEOUT_SECONDS`, default: 30.0s).
+  - **Grounding & Tools**: Completely disabled (no web search, no maps, no function calling, no code execution), preserving the boundary that the system does not possess live situational awareness.
 - **Stateless Operation & Zero Persistence**: The AI preparedness guide service is completely stateless. It performs zero database writes, creates zero tables, and stores no user prompts, contexts, or AI responses.
-- **Task Scope Separation**: Integration with real external AI providers (such as Gemini, OpenAI, or Anthropic via their official SDKs, API keys, and network calls) is strictly deferred to TASK 11B.
+- **Dependency Pinning**: The direct dependency `google-genai==2.22.0` is pinned in `pyproject.toml` for SDK stability with the Interactions API (full transitive dependency locking is addressed in the container packaging stage).
+
+#### AI Provider Operator & Configuration Reference
+
+| Environment Variable | Required / Optional | Default Value | Description |
+| :--- | :--- | :--- | :--- |
+| `GEMINI_API_KEY` | **Required for AI** | *None* | Google Gemini API key. If unset or blank, the endpoint fails closed with HTTP 503 without crashing the server. |
+| `GEMINI_MODEL` | Optional | `gemini-3.8-flash` | Gemini model name used for structured preparedness guide generation. |
+| `GEMINI_TIMEOUT_SECONDS` | Optional | `30.0` | Maximum network timeout in seconds for Gemini interaction requests. |
 
 #### Frontend Integration & Teammate Handoff (Person 1 Quick Reference)
 
@@ -293,7 +309,7 @@ Key contract specifications & safety architecture:
 | **Supported Languages** | `tr` (Turkish, default), `en` (English) |
 | **Response Sections** | `summary`, `before`, `during`, `after`, `emergency_kit`, `important_notes` |
 | **Does frontend parse Markdown?** | **NO.** Content is pre-structured into bounded JSON lists and strings for direct UI rendering. |
-| **Is a live AI provider connected in 11A?** | **NO.** Real external provider integration (SDKs, API keys) is deferred to TASK 11B. |
+| **AI Provider Integration** | Google Gemini (`gemini-3.8-flash`) via official `google-genai` Interactions API (`store=False`). |
 | **Production behavior without provider** | Returns `HTTP 503 Service Unavailable` (`{"detail": "AI preparedness service is currently unavailable."}`). |
 | **Official emergency advice?** | **NO.** Educational guidance only; disclaimers explicitly mandate following AFAD instructions. |
 | **Disaster prediction service?** | **NO.** The API never predicts events or computes occurrence probabilities. |
@@ -381,6 +397,7 @@ backend/
 │   │   │   ├── base.py            # PreparednessAIProvider abstract base class
 │   │   │   ├── dependencies.py    # FastAPI provider dependency injection
 │   │   │   ├── exceptions.py      # Domain exceptions (Unavailable, Malformed, Error)
+│   │   │   ├── gemini.py          # Google Gemini Interactions API provider adapter
 │   │   │   └── policy.py          # Safety policy constraints & prompt builder
 │   │   ├── gem/                   # GEM Global Active Faults & GSHM hazard adapters
 │   │   │   ├── __init__.py
@@ -454,6 +471,7 @@ backend/
 │   │   ├── afad_events_sample.json
 │   │   └── gem_faults_turkey_sample.json
 │   ├── test_afad_adapter.py
+│   ├── test_ai_preparedness.py    # AI preparedness API & safety policy tests
 │   ├── test_config.py
 │   ├── test_database_integration.py
 │   ├── test_db_session.py
@@ -462,6 +480,7 @@ backend/
 │   ├── test_fault_lines_api.py
 │   ├── test_fault_segment_integration.py
 │   ├── test_gem_adapter.py
+│   ├── test_gemini_provider.py    # Google Gemini Interactions API adapter tests
 │   ├── test_hazard_adapter.py     # GEM hazard reader & synthetic GeoPackage unit tests
 │   ├── test_hazard_api.py         # Public hazard API endpoints & correctness tests
 │   ├── test_hazard_integration.py # Hazard models & idempotent import integration tests
