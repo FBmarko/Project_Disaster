@@ -1,6 +1,6 @@
 import {
   Activity,
-  ChartNoAxesCombined,
+  ClipboardCheck,
   House,
   Info,
   Waypoints,
@@ -29,9 +29,9 @@ const primaryNavItems: NavItem[] = [
   { label: 'Fay Hatları', to: ROUTES.faultLines, icon: Waypoints },
   { label: 'Deprem Simülasyonu', to: ROUTES.simulation, icon: Activity },
   {
-    label: 'Simülasyon Sonuçları',
-    to: ROUTES.simulationResults,
-    icon: ChartNoAxesCombined,
+    label: 'Hazırlık Rehberi',
+    to: ROUTES.preparednessGuide,
+    icon: ClipboardCheck,
   },
 ]
 

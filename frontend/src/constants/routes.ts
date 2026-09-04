@@ -4,6 +4,7 @@ export const ROUTES = {
   home: '/',
   faultLines: '/fault-lines',
   simulation: '/simulation',
+  preparednessGuide: '/preparedness-guide',
   simulationResults: '/simulation-results',
   about: '/about',
 } as const

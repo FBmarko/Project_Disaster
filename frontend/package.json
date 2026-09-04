@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "validate:provinces": "node scripts/validate-provinces.ts",
     "validate:faults": "node scripts/validate-faults.ts",
-    "validate:simulation": "node scripts/validate-simulation.ts"
+    "validate:simulation": "node scripts/validate-simulation.ts",
+    "validate:preparedness": "node scripts/validate-preparedness.ts"
   },
   "dependencies": {
     "@vis.gl/react-google-maps": "^1.9.0",
