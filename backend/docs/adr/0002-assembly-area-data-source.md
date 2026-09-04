@@ -94,5 +94,5 @@ To address semantic breadth and data quality before writing persistence code, TA
 ---
 
 ## Consequences & Next Steps for TASK 10B
-1. **Execute TASK 10B-1 First:** Ingest and characterize the reproducible Türkiye OSM snapshot, analyzing way closure, disaster tags, and generic vs disaster-specific semantics.
-2. **Execute TASK 10B-2 Second:** Define models, author migration `0005_create_assembly_area_tables`, build idempotent importer, and expose read-only REST endpoints with ODbL attribution and public-use access provisions.
+1. **TASK 10B-1 Characterization Completed:** Successfully acquired and verified a reproducible Türkiye snapshot (678 elements: 650 nodes, 28 closed-way valid PostGIS polygons, 0 relations; 0% disaster suitability tags; see `backend/docs/osm-assembly-point-snapshot-characterization.md`).
+2. **Execute TASK 10B-2 Next:** Define models (`AssemblyAreaDataset`, `AssemblyArea`), author Alembic migration `0005_create_assembly_area_tables` with data-driven initial fields (`source_feature_id`, `name`, `ref`, `operator`, `geometry`, `source_properties`), build idempotent snapshot importer with allowlisted metadata and PII exclusion, and expose read-only REST endpoints with ODbL attribution and public-use access provisions.

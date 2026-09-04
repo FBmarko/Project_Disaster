@@ -100,18 +100,20 @@ OSM documents supplemental tags indicating suitability for specific disaster typ
 - Because AFET360 stores and exposes machine-readable OSM-derived assembly-point records through a public GeoJSON REST API (rather than solely rendering a static map image), TASK 10B must satisfy ODbL database attribution, share-alike, and public-use access requirements rather than relying only on Produced Work attribution:
   > *"Because AFET360 stores and exposes machine-readable OSM-derived assembly-point records, TASK 10B should satisfy the ODbL database attribution/share-alike/public-use requirements rather than relying only on Produced Work attribution."*
 
-#### 6. Türkiye Empirical Coverage (Overpass Snapshot — 2026-09-03)
+#### 6. Türkiye Empirical Coverage & Snapshot Verification (TASK 10B-1)
 - **Measurement Details:**
-  - Snapshot timestamp: `2026-09-03T21:59:36Z`
+  - Snapshot timestamp: `2026-09-04T08:49:10.757167+00:00`
   - Overpass instance: `https://overpass-api.de/api/interpreter`
   - Query: `area["ISO3166-1"="TR"][admin_level=2] -> (node["emergency"="assembly_point"]; way["emergency"="assembly_point"]; relation["emergency"="assembly_point"];)`
 - **Feature Breakdown:**
-  - **Nodes (Points):** 650
-  - **Ways:** 28
-  - **Relations:** 0
+  - **Nodes (Points):** 650 (95.9%)
+  - **Ways:** 28 (4.1%)
+  - **Relations:** 0 (0.0%)
   - **Total Features:** **678**
-- **Way Polygon-Verification Status:** The snapshot contains 650 node features and 28 way features. Polygon closure and area validity for all 28 ways must be verified during TASK 10B-1 artifact inspection before treating them as polygonal geometries. Valid areas will be stored as actual polygons, never degraded to centroids.
-- **Completeness & Coverage Limitations:** 678 OSM features across 81 provinces (~85M population) indicates **severe geographic sparsity**. Mapped points are clustered primarily in select districts of Istanbul, Izmir, Ankara, and post-2023 earthquake recovery zones. The absence of an assembly point on the map does NOT indicate absence of an official area on the ground.
+- **Way Polygon-Verification Status (Completed in TASK 10B-1):** All 28 ways were verified as closed loops and evaluated via PostGIS `ST_IsValid()`. **100% (28/28) are valid PostGIS polygons** representing parks, open plazas, and facility grounds.
+- **Disaster Suitability Tag Coverage:** Evaluated in TASK 10B-1: `assembly_point:earthquake/fire/flood/tsunami` are **100% missing (0.0% coverage)**. Earthquake-specific filtering is unviable; neutral naming and tri-state NULL semantics apply.
+- **Detailed Characterization Document:** See [`backend/docs/osm-assembly-point-snapshot-characterization.md`](file:///d:/afet360/backend/docs/osm-assembly-point-snapshot-characterization.md) for full empirical findings.
+- **Completeness & Coverage Limitations:** 678 OSM features across 81 provinces (~85M population) indicates **severe geographic sparsity** (concentrated primarily in Marmara/Thrace). The absence of an assembly point on the map does NOT indicate absence of an official area on the ground.
 
 ---
 
@@ -233,26 +235,17 @@ CREATE TABLE assembly_area_datasets (
 );
 ```
 
-### Table 2: `assembly_areas`
+### Table 2: `assembly_areas` (PROPOSED / CONCEPTUAL DDL)
 ```sql
 CREATE TABLE assembly_areas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     dataset_id UUID NOT NULL REFERENCES assembly_area_datasets(id) ON DELETE CASCADE,
-    source_feature_id VARCHAR(128) NOT NULL,  -- e.g. 'node/123456' or 'way/876543'
-    name VARCHAR(256),                        -- e.g. 'Demokrasi Parkı Toplanma Alanı'
-    description TEXT,
-    province VARCHAR(64),
-    district VARCHAR(64),
-    neighborhood VARCHAR(128),
-    address TEXT,
-    capacity INTEGER,
-    -- Tri-state suitability flags (yes=TRUE, no=FALSE, unknown=NULL)
-    earthquake_suitability BOOLEAN,           -- NULL indicates UNKNOWN (missing tag)
-    fire_suitability BOOLEAN,
-    flood_suitability BOOLEAN,
-    tsunami_suitability BOOLEAN,
+    source_feature_id VARCHAR(128) NOT NULL,  -- e.g. 'node/5049895124' or 'way/226421064' (observed max: 16 chars)
+    name VARCHAR(256),                        -- e.g. 'Demokrasi Parkı Toplanma Alanı' (observed max: 77 chars)
+    ref VARCHAR(64),                          -- e.g. '5902-007-07' (observed max: 21 chars)
+    operator VARCHAR(256),                    -- e.g. 'AFAD', 'TBB' (observed max: 45 chars)
     geometry GEOMETRY(Geometry, 4326) NOT NULL, -- Point or Polygon in WGS84
-    source_properties JSONB,                  -- Retained raw tags for audit (not publicly dumped)
+    source_properties JSONB,                  -- Allowlisted relevant source metadata (non-sensitive)
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT uq_assembly_areas_source_feature UNIQUE (dataset_id, source_feature_id)
@@ -261,6 +254,7 @@ CREATE TABLE assembly_areas (
 CREATE INDEX idx_assembly_areas_geometry ON assembly_areas USING GIST (geometry);
 CREATE INDEX idx_assembly_areas_dataset_id ON assembly_areas (dataset_id);
 ```
+*(Note: This DDL snippet is strictly **PROPOSED / CONCEPTUAL** to illustrate relational architecture and is not finalized migration DDL. The column type bounds, e.g. VARCHAR(256), are provisional; TASK 10B-2 will select either `Text` or generously bounded VARCHAR based on measured snapshot evidence and source evolution considerations. Furthermore, dedicated columns for `access`, `capacity`, `check_date`, and the 4 disaster suitability tags are omitted initially because they are 100% unpopulated in the current snapshot; tri-state suitability domain semantics remain active and can be normalized via future migrations if supported by future datasets).*
 
 ### Geometry & Distance Semantics
 - **Geometry Storage:** `GEOMETRY(Geometry, 4326)` stores both 2D `Point` and closed `Polygon` geometries.
