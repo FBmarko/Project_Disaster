@@ -515,6 +515,7 @@ def test_missing_dataset_returns_503(isolated_session: Session) -> None:
     try:
         r_dataset = client.get("/api/v1/assembly-areas/dataset")
         assert r_dataset.status_code == 503
+        assert r_dataset.status_code not in (200, 404)
         assert (
             r_dataset.json()["detail"]
             == "Assembly area dataset is currently unavailable."
@@ -522,6 +523,7 @@ def test_missing_dataset_returns_503(isolated_session: Session) -> None:
 
         r_collection = client.get("/api/v1/assembly-areas")
         assert r_collection.status_code == 503
+        assert r_collection.status_code not in (200, 404)
         assert (
             r_collection.json()["detail"]
             == "Assembly area dataset is currently unavailable."
@@ -531,6 +533,7 @@ def test_missing_dataset_returns_503(isolated_session: Session) -> None:
             "/api/v1/assembly-areas/nearby?lat=41.0&lon=29.0&radius_km=5"
         )
         assert r_nearby.status_code == 503
+        assert r_nearby.status_code not in (200, 404)
         assert (
             r_nearby.json()["detail"]
             == "Assembly area dataset is currently unavailable."
@@ -928,3 +931,272 @@ def test_nearby_false_negative_east_west_regression(
         assert feat["properties"]["distance_km"] == round(actual_dist_km, 3)
     finally:
         app.dependency_overrides.pop(get_db, None)
+
+
+# ==============================================================================
+# 6. PUBLIC FEATURE CONTRACT, ALLOWLIST & OFFICIALITY POLICY TESTS
+# ==============================================================================
+
+
+def test_exact_feature_properties_allowlist_nearby() -> None:
+    """Verify nearby feature properties strictly adhere to the 5-field allowlist."""
+    lat, lon = 40.99, 29.03
+    response = client.get(
+        f"/api/v1/assembly-areas/nearby?lat={lat}&lon={lon}&radius_km=10.0&limit=30"
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    features = data["features"]
+    assert len(features) > 0
+
+    expected_allowlist = {
+        "source_feature_id",
+        "name",
+        "ref",
+        "operator",
+        "distance_km",
+    }
+    for f in features:
+        props = f["properties"]
+        assert set(props.keys()) == expected_allowlist
+        assert isinstance(props["source_feature_id"], str)
+        assert props["name"] is None or isinstance(props["name"], str)
+        assert props["ref"] is None or isinstance(props["ref"], str)
+        assert props["operator"] is None or isinstance(props["operator"], str)
+        assert isinstance(props["distance_km"], float)
+        assert props["distance_km"] >= 0.0
+
+
+def test_nullable_feature_properties_serialization(isolated_session: Session) -> None:
+    """Verify null name, ref, and operator do not drop keys from JSON."""
+    now = datetime.now(UTC)
+    isolated_session.execute(text("DELETE FROM assembly_areas;"))
+    isolated_session.execute(text("DELETE FROM assembly_area_datasets;"))
+    isolated_session.flush()
+
+    ds = AssemblyAreaDataset(
+        source="OpenStreetMap",
+        provider="OpenStreetMap contributors",
+        source_classification="community_open_data",
+        license="ODbL 1.0",
+        attribution="© OpenStreetMap contributors",
+        source_reference="https://www.openstreetmap.org/copyright",
+        snapshot_retrieved_at=now,
+        source_data_timestamp=now,
+        snapshot_sha256="1111111111111111111111111111111111111111111111111111111111111111",
+        snapshot_size_bytes=1000,
+        source_endpoint="https://overpass-api.de/api/interpreter",
+        extraction_query="test",
+        source_metadata={},
+    )
+    isolated_session.add(ds)
+    isolated_session.flush()
+
+    area_nulls = AssemblyArea(
+        dataset_id=ds.id,
+        source_feature_id="node/9999000001",
+        name=None,
+        ref=None,
+        operator=None,
+        geometry=WKTElement("POINT(29.0 41.0)", srid=4326),
+        source_properties={"emergency": "assembly_point"},
+    )
+    isolated_session.add(area_nulls)
+    isolated_session.flush()
+
+    app.dependency_overrides[get_db] = lambda: isolated_session
+    try:
+        # Check collection response
+        res_col = client.get("/api/v1/assembly-areas")
+        assert res_col.status_code == 200
+        feat_col = res_col.json()["features"][0]
+        assert set(feat_col["properties"].keys()) == {
+            "source_feature_id",
+            "name",
+            "ref",
+            "operator",
+        }
+        assert feat_col["properties"]["name"] is None
+        assert feat_col["properties"]["ref"] is None
+        assert feat_col["properties"]["operator"] is None
+
+        # Check nearby response
+        res_near = client.get(
+            "/api/v1/assembly-areas/nearby?lat=41.0&lon=29.0&radius_km=1.0"
+        )
+        assert res_near.status_code == 200
+        feat_near = res_near.json()["features"][0]
+        assert set(feat_near["properties"].keys()) == {
+            "source_feature_id",
+            "name",
+            "ref",
+            "operator",
+            "distance_km",
+        }
+        assert feat_near["properties"]["name"] is None
+        assert feat_near["properties"]["ref"] is None
+        assert feat_near["properties"]["operator"] is None
+        assert feat_near["properties"]["distance_km"] == 0.0
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
+def test_no_unsupported_public_fields_in_features() -> None:
+    """Verify that neither collection nor nearby features contain unsupported fields."""
+    unsupported_fields = [
+        "city",
+        "district",
+        "capacity",
+        "has_polygon",
+        "is_designated_official",
+        "source_data_timestamp",
+        "dataset_id",
+        "created_at",
+        "updated_at",
+        "source_properties",
+        "official",
+        "is_official",
+        "afad_verified",
+    ]
+
+    # Test collection features
+    res_col = client.get("/api/v1/assembly-areas?limit=50")
+    assert res_col.status_code == 200
+    for feat in res_col.json()["features"]:
+        for field in unsupported_fields:
+            assert field not in feat
+            assert field not in feat["properties"]
+
+    # Test nearby features
+    res_near = client.get(
+        "/api/v1/assembly-areas/nearby?lat=41.01&lon=28.97&radius_km=10.0&limit=50"
+    )
+    assert res_near.status_code == 200
+    for feat in res_near.json()["features"]:
+        for field in unsupported_fields:
+            assert field not in feat
+            assert field not in feat["properties"]
+
+
+def test_officiality_edge_case_afad_operator(isolated_session: Session) -> None:
+    """Verify operator=AFAD feature does NOT produce per-feature official boolean."""
+    now = datetime.now(UTC)
+    isolated_session.execute(text("DELETE FROM assembly_areas;"))
+    isolated_session.execute(text("DELETE FROM assembly_area_datasets;"))
+    isolated_session.flush()
+
+    ds = AssemblyAreaDataset(
+        source="OpenStreetMap",
+        provider="OpenStreetMap contributors",
+        source_classification="community_open_data",
+        license="ODbL 1.0",
+        attribution="© OpenStreetMap contributors",
+        source_reference="https://www.openstreetmap.org/copyright",
+        snapshot_retrieved_at=now,
+        source_data_timestamp=now,
+        snapshot_sha256="2222222222222222222222222222222222222222222222222222222222222222",
+        snapshot_size_bytes=1000,
+        source_endpoint="https://overpass-api.de/api/interpreter",
+        extraction_query="test",
+        source_metadata={},
+    )
+    isolated_session.add(ds)
+    isolated_session.flush()
+
+    area_afad = AssemblyArea(
+        dataset_id=ds.id,
+        source_feature_id="node/9999000002",
+        name="AFAD Toplanma Alanı",
+        ref="AFAD-34-01",
+        operator="AFAD",
+        geometry=WKTElement("POINT(29.0 41.0)", srid=4326),
+        source_properties={"emergency": "assembly_point", "operator": "AFAD"},
+    )
+    isolated_session.add(area_afad)
+    isolated_session.flush()
+
+    app.dependency_overrides[get_db] = lambda: isolated_session
+    try:
+        res = client.get("/api/v1/assembly-areas")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["metadata"]["source_classification"] == "community_open_data"
+
+        feat = data["features"][0]
+        props = feat["properties"]
+        assert props["operator"] == "AFAD"
+        assert props["name"] == "AFAD Toplanma Alanı"
+
+        # Explicitly assert no officiality flags
+        assert "official" not in props
+        assert "is_official" not in props
+        assert "is_designated_official" not in props
+        assert "afad_verified" not in props
+        assert "official" not in feat
+        assert "is_official" not in feat
+        assert "is_designated_official" not in feat
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+
+def test_no_earthquake_query_parameters_or_properties() -> None:
+    """Verify no assembly endpoint or schema has earthquake or seismic filters."""
+    openapi = app.openapi()
+    assembly_paths = [p for p in openapi["paths"] if "assembly" in p]
+    assert len(assembly_paths) == 3
+
+    forbidden_terms = ["earthquake", "seismic"]
+    for path in assembly_paths:
+        path_item = openapi["paths"][path]
+        for op in path_item.values():
+            if not isinstance(op, dict):
+                continue
+            for param in op.get("parameters", []):
+                param_name = param.get("name", "").lower()
+                for term in forbidden_terms:
+                    assert term not in param_name, (
+                        f"Found '{term}' in parameter '{param_name}' of endpoint {path}"
+                    )
+
+    # Check schemas
+    schemas = openapi["components"]["schemas"]
+    for schema_name in ["AssemblyAreaProperties", "AssemblyAreaNearbyProperties"]:
+        schema = schemas[schema_name]
+        for prop_name in schema.get("properties", {}):
+            for term in forbidden_terms:
+                assert term not in prop_name.lower(), (
+                    f"Found '{term}' in property '{prop_name}' of schema {schema_name}"
+                )
+
+
+def test_public_response_leakage_comprehensive() -> None:
+    """Verify that public responses never leak internal columns or sensitive tags."""
+    sensitive_markers = [
+        "source_properties",
+        "dataset_id",
+        "created_at",
+        "updated_at",
+        "phone",
+        "mobile",
+        "email",
+        "fax",
+        "contact:",
+        "LOCALAPPDATA",
+        "assembly-cache",
+    ]
+
+    endpoints = [
+        "/api/v1/assembly-areas/dataset",
+        "/api/v1/assembly-areas?limit=20",
+        "/api/v1/assembly-areas/nearby?lat=41.01&lon=28.97&radius_km=5.0&limit=20",
+    ]
+
+    for ep in endpoints:
+        resp = client.get(ep)
+        assert resp.status_code == 200
+        text_content = resp.text
+        for marker in sensitive_markers:
+            assert marker not in text_content, (
+                f"Sensitive marker '{marker}' found in response of {ep}"
+            )

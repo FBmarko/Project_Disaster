@@ -186,6 +186,13 @@ Key geospatial details & operational semantics:
 - **Geometry Preservation**: Preserves native PostGIS `Point` (650) and `Polygon` (28) geometries without centroid flattening or loss of spatial boundaries.
 - **Exact Proximity Calculation**: Distance is calculated directly using PostGIS spheroidal geography (`ST_DWithin` and `ST_Distance`) on the WGS84 ellipsoid without lossy degree-based bounding box prefilters. For Polygon geometries, distance represents the minimum geodesic distance to the polygon boundary; for coordinates inside a polygon, distance is exactly `0.0`.
 - **Distance Output Resolution**: The `distance_km` field is serialized to 3 decimal places (0.001 km output resolution / approximately metre-level displayed resolution; this reflects output precision and carries no claim of geodetic survey-grade real-world accuracy).
+- **Public Feature Properties Contract**:
+  - `GET /api/v1/assembly-areas`: Feature properties allowlist strictly contains `{source_feature_id, name, ref, operator}` (root Feature contains `type`, `id`, `geometry`, `properties`).
+  - `GET /api/v1/assembly-areas/nearby`: Feature properties allowlist strictly contains `{source_feature_id, name, ref, operator, distance_km}`.
+  - Omitted fields: Per-feature administrative fields (`city`, `district`), capacity, geometry redundancy flags (`has_polygon`), or officiality booleans (`is_designated_official`, `official`, `afad_verified`) are strictly omitted.
+- **Missing Dataset vs. Empty Query Semantics**:
+  - Missing backing dataset in database: all 3 endpoints (`/`, `/nearby`, `/dataset`) fail closed with HTTP 503 Service Unavailable (`{"detail": "Assembly area dataset is currently unavailable."}`).
+  - Valid spatial query with zero matching features: returns HTTP 200 OK with GeoJSON `FeatureCollection` containing empty `features: []`, `metadata.returned_count: 0`, and `metadata.truncated: false`.
 - **Canonical Bounding Box Contract**: Follows the canonical AFET360 viewport parameter `bbox=min_lon,min_lat,max_lon,max_lat`. Inverted bounds or malformed values fail closed with HTTP 422.
 - **Technical Radius Ceiling**: Proximity search enforces $0 < \text{radius\_km} \le 200\text{ km}$ as a technical API resource ceiling to protect computational resources, never as operational evacuation guidance.
 - **Privacy & Security Defense**: Strictly whitelists public properties (`source_feature_id`, `name`, `ref`, `operator`, plus `distance_km` in nearby queries). Internal columns (`dataset_id`, `created_at`, `updated_at`, `source_properties`), local file system paths, and unapproved OSM tags are never exposed.
