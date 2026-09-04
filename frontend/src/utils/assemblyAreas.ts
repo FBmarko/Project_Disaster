@@ -2,7 +2,7 @@ import { TURKEY_PROVINCES } from '../constants/provinces.ts'
 import { REGION_TEXT_LIMIT } from '../constants/assembly.ts'
 import type { AssemblyAreaSearch, AssemblyCoordinates, AssemblyRegionDraft, AssemblyRegionErrors } from '../types/assembly.ts'
 
-export function hasValidAssemblyCoordinates(point: AssemblyCoordinates | null | undefined): point is AssemblyCoordinates {
+export function hasValidAssemblyCoordinates(point: Partial<AssemblyCoordinates> | null | undefined): point is AssemblyCoordinates {
   return Boolean(point && typeof point.latitude === 'number' && typeof point.longitude === 'number'
     && Number.isFinite(point.latitude) && Number.isFinite(point.longitude)
     && Math.abs(point.latitude) <= 90 && Math.abs(point.longitude) <= 180)
@@ -28,7 +28,7 @@ export function prepareAssemblyRegion(draft: AssemblyRegionDraft):
 }
 
 /** Destination only: never add the user's precise origin to a URL. */
-export function assemblyDirectionsUrl(point: AssemblyCoordinates | null | undefined): string | null {
+export function assemblyDirectionsUrl(point: Partial<AssemblyCoordinates> | null | undefined): string | null {
   if (!hasValidAssemblyCoordinates(point)) return null
   const params = new URLSearchParams({ api: '1', destination: `${point.latitude},${point.longitude}` })
   return `https://www.google.com/maps/dir/?${params}`

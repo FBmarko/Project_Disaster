@@ -31,22 +31,22 @@ npm run dev
 | `npm run validate:simulation` | Simülasyon taslağı doğrulama ve durum geçişleri |
 | `npm run validate:preparedness` | Hazırlık profili doğrulama ve durum geçişleri |
 | `npm run validate:assembly` | Toplanma alanı, arama ve konum doğrulama |
+| `npm run validate:api` | API yanıtları, kimlik eşleme ve geometri doğrulama |
 
 ## Klasör Yapısı
 
 ```
 src/
-├── api/                 backend istemcisi (ileride)
+├── api/                 HTTP istemcisi ve sözleşme eşleyicileri
 ├── assets/brand/        AFET360 logosu
 ├── components/
 │   ├── common/          BrandLogo, PageContainer
 │   ├── layout/          AppLayout, Navbar, Sidebar
-│   ├── map/             harita bileşenleri (ileride)
-│   └── simulation/      simülasyon bileşenleri (ileride)
+│   ├── map/             SVG harita bileşenleri
+│   └── simulation/      simülasyon bileşenleri
 ├── constants/           colors.ts, routes.ts
 ├── hooks/
 ├── pages/               6 sayfa bileşeni
-├── services/
 └── types/
 ```
 
@@ -76,20 +76,19 @@ ve doğrulama sonuçları: [backend-integration.md](docs/backend-integration.md)
 ## Sınırlar
 
 Frontend yalnızca UI/UX katmanından sorumludur. AFAD, GEM veya benzeri harici
-servislere doğrudan bağlanmaz; deprem/fay verisi ileride proje backend'i
-üzerinden sağlanacaktır. Risk hesaplama ve simülasyon algoritmaları backend
-tarafındadır.
+servislere doğrudan bağlanmaz; fay, yakın deprem ve toplanma noktası verilerini
+proje backend'i üzerinden alır. Simülasyon hesaplama servisi mevcut değildir.
 
-## Fay Hatları — Step 3
+## Fay Hatları
 
-`/fault-lines`, yerel GEM/EMME aktif fay alt kümesinden 321 gerçek segmenti mevcut
-il haritasıyla aynı SVG projeksiyonunda gösterir. Harita üzerinden veya seçim
+`/fault-lines`, backend'in döndürdüğü GEM GAF segmentlerini mevcut il haritasıyla
+aynı SVG projeksiyonunda gösterir. Harita üzerinden veya seçim
 listesinden bir segment seçilebilir; Tab, Enter ve Boşluk klavye kullanımını
 destekler. Seçim kalıcı vurgulanır ve bilgi panelini günceller.
 
-Kaynakta bu segmentlerin isimleri bulunmadığından kaynak kimlikleri gösterilir.
-Şehir ve geçmiş deprem bölümleri backend entegrasyonunu bekler; bu bilgiler için
-örnek deprem veya bilimsel ilişki üretilmemiştir. HomePage risk örnekleri aynıdır.
+Kaynak adları ve kimlikleri korunur. Yakındaki deprem kayıtları backend'in
+coğrafi yakınlık sorgusundan gelir; nedensel fay ilişkisi olarak sunulmaz.
+Şehir ilişkisi bulunmadığından türetilmez. HomePage geliştirme verisi aynıdır.
 Kaynak, lisans, tekrar üretim ve filtreleme ayrıntıları: [data-sources.md](docs/data-sources.md).
 
 ## Deprem Simülasyonu — Step 4

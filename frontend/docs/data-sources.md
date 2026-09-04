@@ -1,5 +1,10 @@
 # Veri Kaynakları / Data Sources
 
+Güncel çalışma zamanı: Fay Hatları backend GEM GAF geometrilerini ve UUID'lerini
+kullanır; yerel 321 segmentli GEM/EMME varlığı korunmuş bir kaynak/doğrulama
+arşividir ve API hatasında yedek veri olarak kullanılmaz. OSM toplanma noktaları
+ve AFAD yakınlık kayıtları için [backend-integration.md](backend-integration.md).
+
 ## Türkiye il sınırları (`src/data/turkey-provinces.geojson`)
 
 | | |

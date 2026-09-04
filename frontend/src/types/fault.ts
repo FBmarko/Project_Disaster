@@ -16,6 +16,8 @@ export type FaultProperties = {
   sourceCatalog: string | null
   sourceName: string | null
   displayName: string
+  faultType?: string | null
+  activityStatus?: string | null
 }
 
 export type FaultFeature = {
@@ -27,8 +29,11 @@ export type FaultFeature = {
 export type FaultEarthquake = {
   id: string
   date: string
-  location: string
+  location: string | null
   magnitude: number
+  magnitudeType?: string
+  depthKm?: number
+  distanceKm?: number
 }
 
 /** Supplied data only: these components never infer city or earthquake links. */

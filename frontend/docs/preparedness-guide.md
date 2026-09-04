@@ -28,9 +28,16 @@ See [backend-integration.md](backend-integration.md) for the current API audit.
 
 The required architecture is **Frontend → Project Backend → AI Provider/Model →
 Project Backend → Frontend**. The frontend must never call a provider directly.
-No AI SDK, provider credentials, Vite AI key, backend endpoint or transport
-contract is introduced by this step. The TypeScript types are local UI models;
-the actual backend contract must be supplied and reviewed later.
+No AI SDK, provider credentials or Vite AI key is introduced. The current backend
+now registers `POST /api/v1/ai/preparedness-guide`, but its production provider
+dependency returns None and valid calls return 503. Only tests override it with a
+stub. The local form remains unconnected until real generation is available.
+
+The strict request accepts only `disaster_type`, optional `city` and `language`;
+extra household fields are rejected. The response uses `summary`, `before`,
+`during`, `after`, `emergency_kit`, `important_notes` and a backend disclaimer.
+It does not supply household personalization or a separate communication plan.
+The UI arrays below remain local display types, not backend DTOs.
 
 `PreparednessGuideResults` expects a `PreparednessGuide | null`, with exactly:
 
@@ -45,13 +52,13 @@ the actual backend contract must be supplied and reviewed later.
 empty sections. Strings render as React text, not HTML. No fixture is wired into
 the page. `PreparednessSafetyNotice` is always present, with or without results.
 
-When a real backend contract is available, add its adapter at the page/service
+When production generation and the product schema are aligned, add an adapter at the page/service
 boundary, validate responses at runtime, and supply the four structured arrays.
 Implement real loading, error and cancellation states then. Clear stale results
 when the profile changes and prevent responses for older profiles from replacing
 newer results. Never pass one unstructured model paragraph directly to the UI.
-The backend should use the children, elderly-person and pet flags to personalize
-`specialNeeds`; the frontend must not calculate or fabricate these suggestions.
+The current backend does not accept children, elderly-person or pet flags. The
+frontend must not imply that these choices personalize generated suggestions.
 Later fields can extend the profile and draft without changing the section
 renderer. Sensitive or medical questions are outside this task.
 
@@ -65,7 +72,7 @@ Backend/model system instructions and response validation must prevent:
 - advice that replaces emergency authority guidance;
 - medical diagnosis.
 
-These safeguards belong in the future backend integration, not frontend prompt
+These safeguards belong in the backend integration, not frontend prompt
 strings. The permanent product notice directs users to AFAD and relevant official
 authorities. Do not frame generated guidance as official advice.
 

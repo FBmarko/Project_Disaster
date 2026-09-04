@@ -12,7 +12,8 @@
     "validate:faults": "node scripts/validate-faults.ts",
     "validate:simulation": "node scripts/validate-simulation.ts",
     "validate:preparedness": "node scripts/validate-preparedness.ts",
-    "validate:assembly": "node scripts/validate-assembly.ts"
+    "validate:assembly": "node scripts/validate-assembly.ts",
+    "validate:api": "node scripts/validate-api.ts"
   },
   "dependencies": {
     "@vis.gl/react-google-maps": "^1.9.0",

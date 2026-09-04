@@ -1,159 +1,62 @@
-# Backend integration audit — Step 9
+# Updated backend API audit and frontend integration
 
-Audited on 2026-09-04 against repository commit `fffff51` on
-`feature/afet360-frontend`, before changing frontend source.
+Audited 2026-09-04 against `aa0520f` (backend `04b1389`), before editing frontend integration code. This replaces the obsolete health-only audit. Registered routers, endpoint implementations, schemas, query services/repositories and API tests take precedence over stale backend README phase notes.
 
-## API audit
+## Pre-implementation matrix
 
-The backend is a FastAPI foundation with one application endpoint: the health
-check. **BACKEND ENDPOINT NOT AVAILABLE** for every requested product feature.
-No product API integration can be implemented against the current contracts.
+All paths below include the default `/api/v1` prefix. GETs have no request body. Geospatial routes require PostgreSQL/PostGIS, applied migrations and imported data for populated success responses; endpoint availability is distinct from local infrastructure availability.
 
-| Feature | Backend endpoint | Status | Frontend integration |
-| --- | --- | --- | --- |
-| Home province earthquake risk/hazard | None | NOT AVAILABLE | Existing development province data retained unchanged |
-| Fault metadata, names and affected cities | None | NOT AVAILABLE | Local GEM geometry and existing detail states retained |
-| Historical earthquakes related to faults | None (no general history endpoint either) | NOT AVAILABLE | No events or fault associations fabricated |
-| Earthquake simulation | None | NOT AVAILABLE | Existing local form validation and unavailable state retained |
-| Preparedness Guide / AI | None | NOT AVAILABLE | Existing profile form, no guide, permanent safety notice retained |
-| Assembly Areas | None | NOT AVAILABLE | Existing empty `AssemblyArea[]` and search UI retained |
-| Service health (outside product feature scope) | `GET /api/v1/health` with default configuration | AVAILABLE | Audited only; supplies no product data |
+| Feature | Actual endpoints | Method | Status | Frontend integration decision |
+| --- | --- | --- | --- | --- |
+| Home / hazard | `/api/v1/earthquake-hazards`, `/api/v1/earthquake-hazards/dataset`, `/api/v1/earthquake-hazards/nearest` | GET | PARTIALLY AVAILABLE for Home | No province classification exists. Retain existing explicitly labelled development visualization; do not aggregate PGA nodes into risk categories. |
+| Faults | `/api/v1/fault-lines`, `/api/v1/fault-lines/nearby`, `/api/v1/fault-lines/{fault_id}` | GET | AVAILABLE | Use returned MultiLineString geometry and UUIDs as canonical runtime records, including actual names/type/activity. No joins to the different local GEM/EMME subset. |
+| Earthquake events | `/api/v1/earthquakes`, `/api/v1/earthquakes/recent-major`, `/api/v1/earthquakes/{event_id}` | GET | AVAILABLE | Use the selected-fault proximity endpoint below in the existing details panel. |
+| Fault proximity | `/api/v1/fault-lines/{fault_id}/earthquakes` | GET | AVAILABLE | Label Yakındaki Depremler; geographic proximity never implies causal fault rupture. |
+| Simulation | None | — | NOT AVAILABLE | Existing local scenario form unchanged. No results page, POST, polling or fabricated results. |
+| Preparedness | `/api/v1/ai/preparedness-guide` | POST | PARTIALLY AVAILABLE | Registered contract but production provider dependency always returns None/503. Keep local profile UI; no test stub exposed as AI. Household fields have no request equivalent. |
+| Assembly | `/api/v1/assembly-areas`, `/api/v1/assembly-areas/nearby`, `/api/v1/assembly-areas/dataset` | GET | AVAILABLE | Coordinate/radius searches; preserve Point and Polygon geometries, attribution and non-official community-data meaning. No administrative text search. |
+| Health | `/api/v1/health` | GET | AVAILABLE | Runtime verification only. No database dependency. |
 
-There are no partially available product contracts. For all six requested
-capabilities, HTTP method, route, request/query schema, response schema and error
-contract are **not defined**. UI types must not be treated as backend DTOs.
+## Actual contracts
 
-## Evidence and actual contract
+- **Health:** no parameters; 200 `{status, service, version}` strings. No endpoint-specific error schema.
+- **Fault list:** optional `bbox=min_lon,min_lat,max_lon,max_lat`, `fault_type`, `limit` 1–2000 (1000 default). Nearby uses required `latitude`, `longitude`, `radius_km` >0..500 and `limit` 1–100 (20 default). Detail uses UUID `fault_id`. GeoJSON FeatureCollection or Feature; geometry is MultiLineString `[lon,lat]`. Properties: UUID `id`, `source`, `source_feature_id`, nullable `name`, `segment_name`, `fault_type`, `activity_status`, `distance_km`. Collection metadata: `count`, `source`, `license`, `attribution`, `disclaimer`. 200 including empty collections, 422 invalid query/UUID, 404 absent detail. No cities field. Full-list query has no offset or total count; a response at the limit must not be represented as exhaustive.
+- **Earthquake list:** optional `min_magnitude`/`max_magnitude` -2..10, `magnitude_type` (max 20 characters), timezone-aware `start_time`/`end_time`, `bbox`, `limit` 1–1000 (100 default), `offset` >=0. Recent-major: `days` 1–3650 (365 default), `min_magnitude` 0..10 (5 default), optional `max_distance_km` >0..500, `limit` 1–500 (100 default), `offset` >=0. Detail uses UUID `event_id`. 200, 422, or 404 absent detail.
+- **Selected-fault earthquakes:** UUID `fault_id`; required `max_distance_km` >0..500; `min_magnitude` -2..10 (5 default), timezone-aware start/end, `limit` 1–500 (100 default), `offset` >=0, `order_by=recent|distance`. 200 including empty, 422 invalid input, 404 absent fault. Point GeoJSON properties include `id`, `source`, `source_event_id`, `occurred_at`, `depth_km`, `magnitude`, `magnitude_type`, nullable `location_name`, country/province/district/neighborhood; proximity adds `distance_to_fault_km`, `nearest_fault_id`, `nearest_fault_source_feature_id`, `association_method=spatial_proximity`, `proximity_disclaimer`. Metadata identifies the target fault, radius, AFAD attribution, GEM attribution/license and scientific disclaimer. Data is a locally synchronized AFAD snapshot, not guaranteed real-time. No frontend spatial association is calculated.
+- **Hazard dataset:** no query; provenance including source/version/model, PGA metric in g, return period 475 years, 10% exceedance in 50 years, reference rock Vs30 800 m/s, DOIs/license, geographic scope/count/checksum. **Nearest:** required `lat`, `lon` within [24..46°E,34..44°N]; Point Feature with `pga_g`, `distance_to_source_node_km`, `source_record_id`, `semantics=nearest_source_node`, provenance. **Collection:** required bbox wholly within that scope, `limit` 1–2000 (1000 default), `offset` >=0; Point features with `id`, `source_record_id`, `pga_g`; metadata includes `count`, bbox, limit, offset, `has_more` and scientific provenance. 200 (collection may be empty), 422 invalid/out-of-scope coordinates, 404 nearest with no node, 503 missing dataset. These are discrete modeled seismic hazard values, not province risk, building safety or local soil amplification.
+- **Assembly list:** optional bbox and `limit` 1–2000 (1000 default). **Nearby:** required `lat`, `lon`, `radius_km` >0..200; `limit` 1–100 (20 default). **Dataset:** no query; provenance and Point/Polygon counts. GeoJSON FeatureCollection with UUID-string feature IDs, native Point or Polygon coordinates; properties `source_feature_id`, nullable `name`, `ref`, `operator`, and nearby-only `distance_km`. No address, province, district, neighborhood, capacity, official verification or entrance coordinate. Metadata: `returned_count`, `truncated`, `source`, `provider`, `source_classification`, `license`, `attribution`, `source_reference`, snapshot/source timestamps, SHA-256 and disclaimer. 200 including empty, 422 invalid query, 503 missing dataset. Polygon distance is to geometry, zero inside; not walking distance. OSM community records may be incomplete or facility-specific and are not official AFAD locations, even when operator says AFAD.
+- **Preparedness request:** `{disaster_type: earthquake|flood|fire, city?: string|null, language?: tr|en}`; city trimmed, 1–80 characters, language defaults tr, extra fields forbidden. No household size/children/elderly/pets fields. **Response:** `{disaster_type, city, language, generated_by_ai, guide, disclaimer}`. Guide: summary 10–600 chars; before/during/after each 1–8 strings of 3–300 chars; emergency_kit 1–12 strings of 2–200 chars; important_notes 0–6 strings of 3–300 chars. 200 only with a working provider; 422 invalid request, 502 provider/malformed output, 503 unavailable. No DB needed. `app/integrations/ai/dependencies.py` always returns None; tests alone override it with `tests/fakes/ai.py`. Before/during/after cannot safely be relabelled communicationPlan. No transport/mapper is wired until production generation and product expectations can be reconciled.
 
-Implementation was read, not inferred from filenames:
+Unhandled database connection failures can produce server errors; frontend must show friendly Turkish errors rather than raw details.
 
-- `backend/app/main.py` constructs FastAPI and includes `api_router`.
-- `backend/app/api/router.py` mounts `v1_router` under `settings.API_V1_PREFIX`.
-- `backend/app/api/v1/router.py` includes only `health.router`.
-- `backend/app/api/v1/endpoints/health.py` defines only `GET /health` and
-  `HealthResponse`. It returns settings-derived service/version metadata.
-- `backend/app/core/config.py` defaults `API_V1_PREFIX` to `/api/v1`,
-  `APP_NAME` to `AFET360 API`, and `APP_VERSION` to `0.1.0`.
-- `backend/tests/test_health.py` checks this default health response.
-- `backend/README.md`, `backend/pyproject.toml`, and the safe backend environment
-  template confirm foundation scope. Repository searches found no other
-  controllers, registered routes, request/response models or product API specs.
+## Evidence
 
-### Health
+Read `backend/app/api/v1/router.py`, all six endpoint modules, schemas `fault_line_api.py`, `earthquake_api.py`, `hazard_api.py`, `assembly_api.py`, `ai.py`, query services and repositories, preparedness service/provider dependency, API tests, README, `.env.example`, pyproject and root Docker Compose. Full backend simulation/scenario searches found no simulation route; magnitude/depth/radius are event or proximity fields, not simulation APIs. Backend README still says assembly API is absent in its older phase section; current router/source/tests prove it is exposed. Backend documentation was not edited.
 
-- Method/path: `GET /api/v1/health` by default; prefix is configurable in backend.
-- Request body: none. Query parameters: none. Authentication: none implemented.
-- Success: HTTP 200, JSON with required string fields `status`, `service`,
-  `version`. Default response:
+## Implemented frontend behavior
 
-  ```json
-  { "status": "ok", "service": "AFET360 API", "version": "0.1.0" }
-  ```
+- `src/api/client.ts`: native fetch, `VITE_API_BASE_URL`, validated JSON parsers, sanitized HTTP errors, explicit AbortSignal and a 20-second timeout. No credentials, browser caching or referrer in API requests. Missing base URL is an error, not a request to an assumed origin.
+- `src/api/faults.ts`: collection query with documented regional bbox `24,34,46,44` and limit 2000. Backend UUID is the UI identity and proximity path parameter; `source_feature_id` is the display catalog identity. Geometry is transferred unchanged. No local/backend record join or duplicate geometry set. Local archived GEM assets and their integrity checks remain unchanged; they are never API-error fallbacks. Returned names, classification and activity appear in the selected panel. Cities remain explicitly unavailable.
+- `src/api/earthquakes.ts`: selected-fault proximity query, max distance 25 km, minimum magnitude 5, newest-first, first 100 records. The UI states the filters and warns when the limit is reached. Date/time is labelled UTC; magnitude scale, depth and distance are preserved. The response must match the selected fault and declare spatial proximity. AFAD/GEM attribution and the non-causal notice are displayed even for empty results.
+- `src/api/assemblyAreas.ts`: explicit coordinate/radius search with limit 100; truncation is surfaced. No unsupported administrative parameters. Full Point/Polygon mapping, null metadata, OSM attribution/source date, list/marker/polygon selection, and point-only destination links. Polygon bounds are preserved; no centroid or entrance is invented. See [assembly-areas.md](assembly-areas.md).
+- `useApiResource` keys results to the current selection/search, aborts replaced/unmounted requests and suppresses late responses. All connected views provide loading, populated success, empty and friendly Turkish error states with retry. Edits clear assembly results; search buttons disable during a request. There are no integrated POSTs.
+- Home province data, SimulationPage, PreparednessGuidePage, About copy and navigation are unchanged. No production AI provider exists; the household schema mismatch is documented above. No hazard conversion, simulation results, AI output or emergency locations are fabricated.
 
-- Errors: no endpoint-specific error model, explicit error branch, or custom
-  exception handler. No product error contract should be inferred from health.
-- FastAPI documentation routes: `GET /docs`, `GET /redoc`, and
-  `GET /openapi.json`. These are documentation, not product data APIs.
-- No CORS middleware or frontend development proxy is configured in the checked
-  source. Browser cross-origin integration will need an approved deployment or
-  backend configuration when real product endpoints become available.
+## Environment and local operation
 
-## Frontend behavior retained
+`VITE_API_BASE_URL` is the project backend root **before** `/api/v1` (or a same-origin proxy prefix). No origin is hard-coded in components. Backend currently has no CORS middleware. For local development/preview, an optional Vite proxy maps `/backend` to server-only `API_PROXY_TARGET`; set `VITE_API_BASE_URL=/backend` and set that target to the actual running local backend origin in ignored `.env.local`. Production needs its own reverse proxy or correctly configured backend CORS; the Vite development server is not production hosting.
 
-- **Home:** `useProvinceRisk` still returns `mockProvinceRisk`, explicitly
-  development UI data, not scientifically validated risk or hazard. No request
-  runs and this is not a fallback after an API error. All 81 province geometries,
-  tooltip/hover behavior and legend remain unchanged.
-- **Fault Lines:** local GEM/EMME geometry remains authoritative for this UI.
-  Names, cities and historical earthquake relationships are not supplied by the
-  backend. Existing missing-data states remain; no spatially guessed earthquake
-  associations are introduced.
-- **Simulation:** latitude, longitude, magnitude, depth and radius remain local
-  form inputs, not an invented request contract. Start validates the draft and
-  shows the existing unavailable state. There is no backend status/result to
-  display, polling or preparedness CTA. The page remains `/simulation`.
-- **Preparedness:** city, disaster type, household size, children, elderly-person
-  and pet choices remain a local profile. Results receive `null`; no AI provider
-  is called. The desired `priorities`, `emergencyKit`, `communicationPlan` and
-  `specialNeeds` string arrays are UI types, not an available backend response.
-  When an endpoint exists, validate its output at runtime before rendering and
-  reject malformed data. The existing notice remains unchanged:
+`.env.example` adds only blank `API_PROXY_TARGET` and explanatory comments. The existing Google Maps key and optional map ID remain environment-only. No AI credentials or new frontend packages were added. A local ignored `.env.local` was created for verification. The final test backend ran on loopback port 8001 with a process-local `PGCONNECT_TIMEOUT=2`, leaving backend source and configuration files unchanged.
 
-  > Bu rehber genel hazırlık ve farkındalık amacıyla sunulmaktadır. Afet ve acil durumlarda AFAD ve ilgili resmî kurumların açıklama ve talimatlarını takip edin.
+## Runtime and validation results
 
-- **Assembly Areas:** no backend search mode exists. The local region and
-  current-location flows do not send backend requests. `ASSEMBLY_AREAS` remains
-  empty; no area cards, area markers or directions are invented. Existing
-  selection/list/map wiring is retained for future verified records. Explicit
-  current-location action and page-memory-only coordinate handling are unchanged.
-
-No unused HTTP client, API modules, DTOs, artificial loading states or mapping
-tests were added. Add the shared `VITE_API_BASE_URL` client, typed contract
-mappers, Turkish loading/error/empty states, cancellation and duplicate-submit
-guards when actual product endpoints can be connected. Never silently substitute
-mock data for a failed real request.
-
-## Cancelled results page
-
-Removed the unused `/simulation-results` route, its route constant and placeholder
-`SimulationResultsPage.tsx`. A reference search found only the route registration
-and historical documentation; SimulationPage and validation scripts do not depend
-on it. Unknown URLs use the existing redirect to Home. No replacement results
-route or page was created. The sidebar remains Ana Sayfa, Fay Hatları, Deprem
-Simülasyonu, Hazırlık Rehberi, Toplanma Alanları, divider, Hakkında.
-
-## Environment
-
-No environment files changed and no credentials were added.
-
-| Variable | Current use |
-| --- | --- |
-| `VITE_API_BASE_URL` | Existing blank template; reserved for future project-backend requests, currently unused |
-| `VITE_GOOGLE_MAPS_API_KEY` | Existing Google Maps environment key for Simulation and Assembly Areas; absent key retains configuration state |
-| `VITE_GOOGLE_MAPS_MAP_ID` | Existing optional AdvancedMarker map ID |
-
-Keep real values out of Git. No AI credential or direct provider SDK belongs in
-the frontend. AboutPage content and all geographic assets are unchanged.
-
-## Verification
-
-All existing validation commands passed from `frontend/`:
-
-- `npm run validate:provinces`: 81 canonical provinces and projection verified.
-- `npm run validate:faults`: 321 real source features and geometry integrity.
-- `npm run validate:simulation`: 11 checks passed.
-- `npm run validate:preparedness`: 8 checks passed.
-- `npm run validate:assembly`: 8 checks passed.
-- `npm run build`: TypeScript and Vite passed; Vite reported a non-blocking
-  warning for a main bundle over 500 kB.
-- `npm run lint`: passed.
-
-Headless Microsoft Edge via Playwright, against the local Vite server:
-
-- All six product routes loaded at widths 1440, 768, 390 and 320 (24 checks),
-  with no document horizontal overflow or browser console/page errors.
-- Both `/simulation-results` and `/simulation/result/test` redirect to Home.
-- Sidebar contains exactly the six expected links in order. Keyboard Enter
-  opens it and Escape closes it.
-- Fault keyboard selection works with Enter and Space; a second selection
-  replaces the first.
-- Preparedness invalid submission focuses the city field. Keyboard radio
-  choices and repeated valid local submissions retain the no-guide status;
-  editing clears that status. Safety notice remains present.
-- Assembly invalid submission focuses the province field. Repeated region
-  searches retain the honest unavailable-data state and create no directions.
-- Simulation and Assembly Areas show their missing-Google-key states. Simulation
-  start is disabled without a selected location.
-- These browser flows made no external requests and left localStorage,
-  sessionStorage and cookies empty. No real geolocation permission was requested.
-
-Limitations: no real Google Maps key was configured, so live map clicks,
-markers and directions were not exercised. No product endpoint exists, so API
-loading, success, error, cancellation or duplicate POST behavior cannot be tested
-against a real backend. No mocked API success was substituted.
-
-Backend runtime verification was not performed. The accessible bundled Python
-runtime lacks `fastapi`, `pydantic_settings`, `uvicorn` and `httpx`; discovery of
-the registered system Python encountered an OS access error. No dependencies,
-backend source or backend configuration were changed. Health and product API
-availability findings are based on source inspection, not a live server test.
+- Merge `aa0520f` was successfully pushed, unchanged, using existing Git Credential Manager. No GitHub CLI install or re-merge was needed.
+- Created ignored repository-root `.venv` with Python 3.12.14; installed documented editable `backend[dev]` dependencies using uv. No backend source/configuration/test files changed.
+- Uvicorn started; real `GET /api/v1/health` returned 200 and the expected status/service/version. Real OpenAPI returned all 15 registered paths. Real valid preparedness POST returned 503 with the default provider dependency, confirming that no stub is exposed.
+- Docker CLI is installed. Its engine was stopped; `docker desktop start --detach` was attempted, then `docker compose up -d` failed because `dockerDesktopLinuxEngine` was absent. A bounded `docker desktop start --timeout 45` ended with `Docker Desktop is still starting: context deadline exceeded`. PostgreSQL on port 5432 remained unreachable. No migration or importer/synchronization ran; no DB volumes/source snapshots were edited. No live AFAD synchronization was attempted.
+- Fault/earthquake/hazard/assembly endpoint checks initially timed out on database access. With a bounded connection timeout they returned HTTP 500. These are real infrastructure failures, not empty datasets. No populated live geospatial success is claimed.
+- Backend fault API test attempt: 7 passed, 3 DB-connection failures, stopped at maxfail 3. Earthquake API attempt: first database-dependent test failed, stopped at maxfail 1. Representative hazard/assembly dataset API tests: 2 skipped by their existing database-availability fixtures. AI suite: 31 passed, 1 failed because its database-write-audit test requires PostGIS despite not carrying the integration marker. Backend tests were not modified; backend suite is not all-green in this environment. Dependency deprecation warnings were observed.
+- Frontend: `validate:provinces`, `validate:faults`, `validate:simulation`, `validate:preparedness`, `validate:assembly`, `validate:api`, `build` and `lint` all passed. The existing fault validator covers the preserved local archive; the new API checks cover runtime contracts. No new testing framework was installed.
+- Headless Edge/Playwright: all six routes checked at 1440, 768, 390 and 320 pixels, without page horizontal overflow. Real fault/assembly backend errors displayed friendly Turkish text, with loading/retry and zero fallback records. There were three expected failed-resource console messages from real HTTP errors, and no application exceptions.
+- Separate intercepted contract fixtures (test browser only) verified fault/proximity and assembly success, empty, malformed response, repeat/retry, loading/disabled submit, keyboard selection, stale-selection/cancelled-search suppression, Point/Polygon cards, point-only directions and no origin in directions URLs. Populated views also passed all four widths. No fixture-phase console errors. These checks are **not live backend success tests**; fixtures never ship as runtime data.
+- Sidebar order/keyboard and cancelled-results URL redirects passed. Browser storage/cookies stayed empty. Live Google Maps marker/polygon interactions could not be tested without a configured key; no real geolocation permission was requested. Existing geolocation unit checks remain green.

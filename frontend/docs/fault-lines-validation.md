@@ -1,4 +1,4 @@
-# Fault Lines — implementation and validation
+# Fault Lines — implementation and validation (historical Step 3 record)
 
 Verified 2026-09-03. See [data-sources.md](data-sources.md) for exact source URLs,
 license, citation, filter recipe and preserved-coordinate provenance.
@@ -56,14 +56,14 @@ Local Vite app tested in the Codex in-app Chromium browser:
   record. Selection remains after leaving the map, and the tooltip disappears.
 - Enter selects `ME_TRCS002`; Space selects `ME_TRCS003`.
 - Native dropdown updates the selected line; clearing it restores the initial
-  empty state. Both city and earthquake sections display backend-pending text.
+  empty state. At Step 3 both sections displayed pending text. Current earthquake proximity integration is documented in backend-integration.md.
 - Sidebar opens/closes and reports `aria-current="page"` for Fay Hatları.
 - Layout checked at 1440×900, 768×1024, 390×844 and 320×800; no page-level
   horizontal overflow. Details stack vertically on narrow screens.
 - HomePage Ankara hover/focus still reports “Orta Risk” and fills `#F59E0B`.
 - Browser console recorded no warnings or runtime errors in the checked flows.
 - Source/build inspection confirms the fault asset is embedded locally via
-  `?raw`; there is no runtime fetch/API client. The two external UI links are
+  `?raw`; Step 3 had no runtime fetch/API client; the current page uses the project API. The two external UI links are
   attribution links only. No third-party network request interception was used.
 
 Responsive checks used browser viewport resizing, not physical touch hardware.

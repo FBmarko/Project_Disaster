@@ -9,7 +9,7 @@ export function FaultCities({ cities, pending }: { cities: readonly string[]; pe
       {cities.length ? <ul className="mt-5 flex flex-wrap gap-2">
         {cities.map((city) => <li key={city} className="max-w-full break-words rounded-full border border-border-subtle px-4 py-2 text-sm">{city}</li>)}
       </ul> : <p className="mt-5 text-sm leading-6 text-text-secondary">{pending
-        ? 'Bu fay hattı için şehir verisi backend entegrasyonu sonrasında gösterilecektir.'
+        ? 'Bu fay hattının üzerinden geçtiği şehirlere ilişkin doğrulanmış bilgi sunulmuyor.'
         : 'Bu fay hattı için şehir kaydı bulunmuyor.'}</p>}
     </section>
   )

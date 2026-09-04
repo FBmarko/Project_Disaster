@@ -4,6 +4,7 @@ import { APIProvider, APILoadingStatus, AdvancedMarker, Map, Pin, useApiLoadingS
 import { DEVELOPMENT_MAP_ID, SIMULATION_MAP as TURKEY_MAP_VIEW } from '@/constants/simulation'
 import { hasValidAssemblyCoordinates } from '@/utils/assemblyAreas'
 import type { AssemblyMapProps } from './AssemblyAreaMap'
+import type { AssemblyArea, AssemblyCoordinates } from '@/types/assembly'
 import { AssemblyAreaMapState } from './AssemblyAreaMapState'
 
 let authenticationFailed = false
@@ -13,16 +14,42 @@ function MapFocus({ areas, selectedAreaId, userLocation, focusRequest }: Assembl
   const target = areas.find((area) => area.id === selectedAreaId) ?? userLocation
   const latitude = hasValidAssemblyCoordinates(target) ? target.latitude : null
   const longitude = hasValidAssemblyCoordinates(target) ? target.longitude : null
+  const polygon = target && 'geometry' in target && target.geometry?.type === 'Polygon' ? target.geometry : null
   useEffect(() => {
     if (!map) return
-    if (latitude !== null && longitude !== null) {
+    if (polygon) {
+      const bounds = new google.maps.LatLngBounds()
+      polygon.coordinates.forEach(ring => ring.forEach(([lng, lat]) => bounds.extend({ lat, lng })))
+      map.fitBounds(bounds, 40)
+    } else if (latitude !== null && longitude !== null) {
       map.panTo({ lat: latitude, lng: longitude })
       map.setZoom(15)
     } else {
       const { padding, ...bounds } = TURKEY_MAP_VIEW.bounds
       map.fitBounds(bounds, padding)
     }
-  }, [map, latitude, longitude, focusRequest])
+  }, [map, latitude, longitude, polygon, focusRequest])
+  return null
+}
+
+/** Preserve backend polygon rings; never guess a centroid or an entrance. */
+function AssemblyPolygons({ areas, selectedAreaId, onSelect }: AssemblyMapProps) {
+  const map = useMap('assembly-map')
+  useEffect(() => {
+    if (!map) return
+    const polygons = areas.flatMap(area => {
+      if (area.geometry?.type !== 'Polygon') return []
+      const selected = area.id === selectedAreaId
+      const polygon = new google.maps.Polygon({ map,
+        paths: area.geometry.coordinates.map(ring => ring.map(([lng, lat]) => ({ lat, lng }))),
+        strokeColor: selected ? '#991B1B' : '#EF2B2D', strokeWeight: selected ? 4 : 2,
+        fillColor: '#EF2B2D', fillOpacity: selected ? 0.35 : 0.15,
+      })
+      const listener = polygon.addListener('click', () => onSelect(area.id))
+      return [{ polygon, listener }]
+    })
+    return () => polygons.forEach(({ polygon, listener }) => { listener.remove(); polygon.setMap(null) })
+  }, [map, areas, selectedAreaId, onSelect])
   return null
 }
 
@@ -55,13 +82,14 @@ function MapScene(props: AssemblyMapProps & { loaderFailed: boolean }) {
         rotateControl={false} cameraControl={false} zoomControl clickableIcons={false}
         reuseMaps={false} onTilesLoaded={() => setTilesReady(true)}>
         <MapFocus {...props} />
+        <AssemblyPolygons {...props} />
         {hasValidAssemblyCoordinates(props.userLocation) ? <AdvancedMarker
           position={{ lat: props.userLocation.latitude, lng: props.userLocation.longitude }} title="Kullanıcı Konumu">
           <span className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-blue-700 text-white shadow-md">
             <LocateFixed size={23} aria-hidden="true" /><span className="sr-only">Kullanıcı Konumu</span>
           </span>
         </AdvancedMarker> : null}
-        {props.areas.filter(hasValidAssemblyCoordinates).map((area) => {
+        {props.areas.filter((area): area is AssemblyArea & AssemblyCoordinates => hasValidAssemblyCoordinates(area)).map((area) => {
           const selected = area.id === props.selectedAreaId
           return <AdvancedMarker key={area.id} position={{ lat: area.latitude, lng: area.longitude }}
             title={`${selected ? 'Seçili alan: ' : 'Toplanma Alanı: '}${area.name}`}

@@ -7,14 +7,25 @@ export type AssemblyAreaSearch =
   | ({ mode: 'CURRENT_LOCATION' } & AssemblyCoordinates)
   | { mode: 'REGION'; province: string; district?: string; neighborhood?: string }
 
-/** Display model for future approved records, not an invented transport contract. */
-export interface AssemblyArea extends AssemblyCoordinates {
+/** Native geometry from the public assembly API; no generated destination points. */
+export type AssemblyGeometry =
+  | { type: 'Point'; coordinates: readonly [number, number] }
+  | { type: 'Polygon'; coordinates: readonly (readonly (readonly [number, number])[])[] }
+
+export interface AssemblyArea {
   id: string
   name: string
-  province: string
-  district: string
+  latitude?: number
+  longitude?: number
+  province?: string
+  district?: string
   neighborhood?: string
   address?: string
+  geometry?: AssemblyGeometry
+  sourceId?: string
+  reference?: string | null
+  operator?: string | null
+  distanceKm?: number
 }
 
 export interface AssemblyRegionDraft {
