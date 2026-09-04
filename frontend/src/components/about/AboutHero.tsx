@@ -16,19 +16,7 @@ export function AboutHero() {
           Depremi anlamak, olası senaryoları deneyimlemek ve daha hazırlıklı
           olmak için bir afet farkındalık platformu.
         </p>
-        <ol aria-label="AFET360 yaklaşımı" className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm font-medium text-text-primary">
-          <li>
-            <span className="flex items-center gap-3">
-              Bilgi <ArrowRight size={15} className="text-brand-red" aria-hidden="true" />
-            </span>
-          </li>
-          <li>
-            <span className="flex items-center gap-3">
-              Farkındalık <ArrowRight size={15} className="text-brand-red" aria-hidden="true" />
-            </span>
-          </li>
-          <li>Hazırlık</li>
-        </ol>
+        
       </div>
     </header>
   )
