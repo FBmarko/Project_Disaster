@@ -1,4 +1,3 @@
-import { ArrowRight } from 'lucide-react'
 import { BrandLogo } from '@/components/common/BrandLogo'
 
 export function AboutHero() {

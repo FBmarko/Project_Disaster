@@ -3,6 +3,7 @@ import {
   ClipboardCheck,
   House,
   Info,
+  MapPinned,
   Waypoints,
   X,
   type LucideIcon,
@@ -33,6 +34,7 @@ const primaryNavItems: NavItem[] = [
     to: ROUTES.preparednessGuide,
     icon: ClipboardCheck,
   },
+  { label: 'Toplanma Alanları', to: ROUTES.assemblyAreas, icon: MapPinned },
 ]
 
 const secondaryNavItems: NavItem[] = [
