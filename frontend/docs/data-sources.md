@@ -135,19 +135,19 @@ UI danger scores, city lists or earthquake histories.
 `src/data/turkey-active-faults.manifest.json` records the source revision, URL,
 hash, filter, bounds, count and canonical subset SHA-256. The canonical hash
 ignores JSON whitespace/line-ending changes. `npm run validate:faults` uses the
-same parser and projection as the UI, checks all 321 features, finite coordinates,
+archive parser and shared SVG projection, checks all 321 features, finite coordinates,
 nondegenerate open paths, IDs, safe names, Turkey scope and multipart handling.
 It also compares the complete HomePage map output (all paths, centers, dimensions)
 to its hash captured before the shared projection change. An optional source
 argument checks every retained feature for deep equality with the original.
 
-Vite embeds the local GeoJSON through a `?raw` import. The application makes no
-third-party fault-data request. Source and license links are attribution links
-only, followed solely when the user clicks them.
+The local GeoJSON is read only by offline import and validation tooling; no
+application module imports it, so it does not enter production runtime chunks.
+The application makes no third-party fault-data request. Source and license links
+are attribution links only, followed solely when the user clicks them.
 
-**REAL:** province boundaries, active-fault source geometry and catalog metadata.
-**BACKEND-PENDING:** cities crossed by a selected fault and associated historical
-earthquakes. No details fixtures or realistic invented records are included.
-The detail components only render supplied arrays; their interface carries the
-fault ID and a pending/development/ready status for later backend integration.
-Any future development detail response gets a visible development-data notice.
+**REAL:** province boundaries and project-API active-fault geometry, catalog
+metadata and proximity earthquake records. **ARCHIVED:** the local 321-segment
+fault subset used by offline validation and provenance checks. Verified
+fault-to-city relationships are unavailable and never inferred. No detail
+fixtures, realistic invented records or API-error fallback data are included.

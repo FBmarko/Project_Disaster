@@ -52,13 +52,13 @@ export function AboutPage() {
           <ModuleCard
             icon={SlidersHorizontal}
             title="Deprem Senaryosu Oluşturun"
-            description="Haritadan bir konum seçin; deprem büyüklüğü, derinlik ve etki alanını belirleyerek farklı senaryoları deneyimleyin."
+            description="Haritadan bir konum seçin; deprem büyüklüğü, derinlik ve etki alanını belirleyerek bir senaryo taslağı hazırlayın."
             className="lg:col-span-2"
           />
           <ModuleCard
             icon={ClipboardCheck}
             title="Hazırlık Rehberi"
-            description="Kendiniz, aileniz ve yaşam koşullarınız için kişiselleştirilmiş afet hazırlık önerileri oluşturun."
+            description="Şehriniz ve hane koşullarınızla ilgili bilgileri bir araya getirerek hazırlık profilinizi oluşturun."
             className="lg:col-span-3"
           />
           <ModuleCard
@@ -72,9 +72,8 @@ export function AboutPage() {
 
       <AboutSection id="deprem-simulasyonu" title="Deprem Simülasyonu" icon={Activity}>
         <p>
-          Deprem simülasyonu, farklı büyüklük ve derinliklerdeki deprem
-          senaryolarının olası etkilerini daha anlaşılır şekilde
-          deneyimlemenize yardımcı olur.
+          Deprem senaryosu ekranı; konum, büyüklük, derinlik ve inceleme alanı
+          gibi temel girdileri bir arada değerlendirmenize yardımcı olur.
         </p>
         <p>
           Amaç bir depremin ne zaman gerçekleşeceğini tahmin etmek değil;
@@ -82,8 +81,8 @@ export function AboutPage() {
           ihtiyaçlarınızı daha iyi anlamaktır.
         </p>
         <p>
-          Senaryoyu inceleyerek kendiniz, aileniz ve yaşam alanınız için hangi
-          önlemleri alabileceğinizi değerlendirebilirsiniz.
+          Senaryo taslağını hazırlarken kendiniz, aileniz ve yaşam alanınız için
+          hangi hazırlık konularını ele alacağınızı değerlendirebilirsiniz.
         </p>
       </AboutSection>
 
@@ -97,7 +96,7 @@ export function AboutPage() {
           <ModuleCard
             icon={Lightbulb}
             title="Farkındalık"
-            description="Farklı deprem senaryolarını değerlendirerek yaşadığınız çevreye yönelik farkındalığınızı artırın."
+            description="Deprem senaryosu girdilerini gözden geçirerek yaşadığınız çevreye yönelik farkındalığınızı artırın."
           />
           <ModuleCard
             icon={ShieldCheck}

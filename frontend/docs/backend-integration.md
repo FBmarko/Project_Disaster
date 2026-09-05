@@ -40,23 +40,41 @@ Read `backend/app/api/v1/router.py`, all six endpoint modules, schemas `fault_li
 - `src/api/earthquakes.ts`: selected-fault proximity query, max distance 25 km, minimum magnitude 5, newest-first, first 100 records. The UI states the filters and warns when the limit is reached. Date/time is labelled UTC; magnitude scale, depth and distance are preserved. The response must match the selected fault and declare spatial proximity. AFAD/GEM attribution and the non-causal notice are displayed even for empty results.
 - `src/api/assemblyAreas.ts`: explicit coordinate/radius search with limit 100; truncation is surfaced. No unsupported administrative parameters. Full Point/Polygon mapping, null metadata, OSM attribution/source date, list/marker/polygon selection, and point-only destination links. Polygon bounds are preserved; no centroid or entrance is invented. See [assembly-areas.md](assembly-areas.md).
 - `useApiResource` keys results to the current selection/search, aborts replaced/unmounted requests and suppresses late responses. All connected views provide loading, populated success, empty and friendly Turkish error states with retry. Edits clear assembly results; search buttons disable during a request. There are no integrated POSTs.
-- Home province data, SimulationPage, PreparednessGuidePage, About copy and navigation are unchanged. No production AI provider exists; the household schema mismatch is documented above. No hazard conversion, simulation results, AI output or emergency locations are fabricated.
+- Home province data remains explicitly labelled development UI data. Simulation
+  and Preparedness remain local drafts, global light/dark theme applies to all
+  routes, and each page is lazy-loaded. No production AI provider exists; the
+  household schema mismatch is documented above. No hazard conversion,
+  simulation results, AI output or emergency locations are fabricated.
 
 ## Environment and local operation
 
 `VITE_API_BASE_URL` is the project backend root **before** `/api/v1` (or a same-origin proxy prefix). No origin is hard-coded in components. Backend currently has no CORS middleware. For local development/preview, an optional Vite proxy maps `/backend` to server-only `API_PROXY_TARGET`; set `VITE_API_BASE_URL=/backend` and set that target to the actual running local backend origin in ignored `.env.local`. Production needs its own reverse proxy or correctly configured backend CORS; the Vite development server is not production hosting.
 
-`.env.example` adds only blank `API_PROXY_TARGET` and explanatory comments. The existing Google Maps key and optional map ID remain environment-only. No AI credentials or new frontend packages were added. A local ignored `.env.local` was created for verification. The final test backend ran on loopback port 8001 with a process-local `PGCONNECT_TIMEOUT=2`, leaving backend source and configuration files unchanged.
+`.env.example` contains only the required public `VITE_API_BASE_URL` and
+`VITE_GOOGLE_MAPS_API_KEY` names, with blank values. Optional local-only
+`API_PROXY_TARGET` and production `VITE_GOOGLE_MAPS_MAP_ID` settings remain
+documented without placeholder entries. No AI credentials or new frontend
+packages were added. Local ignored environment files remain uncommitted.
+
+The final frontend completion boundary and seven outstanding backend/product
+dependencies are summarized in [release-readiness.md](release-readiness.md).
 
 ## Runtime and validation results
 
-- Merge `aa0520f` was successfully pushed, unchanged, using existing Git Credential Manager. No GitHub CLI install or re-merge was needed.
-- Created ignored repository-root `.venv` with Python 3.12.14; installed documented editable `backend[dev]` dependencies using uv. No backend source/configuration/test files changed.
-- Uvicorn started; real `GET /api/v1/health` returned 200 and the expected status/service/version. Real OpenAPI returned all 15 registered paths. Real valid preparedness POST returned 503 with the default provider dependency, confirming that no stub is exposed.
-- Docker CLI is installed. Its engine was stopped; `docker desktop start --detach` was attempted, then `docker compose up -d` failed because `dockerDesktopLinuxEngine` was absent. A bounded `docker desktop start --timeout 45` ended with `Docker Desktop is still starting: context deadline exceeded`. PostgreSQL on port 5432 remained unreachable. No migration or importer/synchronization ran; no DB volumes/source snapshots were edited. No live AFAD synchronization was attempted.
-- Fault/earthquake/hazard/assembly endpoint checks initially timed out on database access. With a bounded connection timeout they returned HTTP 500. These are real infrastructure failures, not empty datasets. No populated live geospatial success is claimed.
-- Backend fault API test attempt: 7 passed, 3 DB-connection failures, stopped at maxfail 3. Earthquake API attempt: first database-dependent test failed, stopped at maxfail 1. Representative hazard/assembly dataset API tests: 2 skipped by their existing database-availability fixtures. AI suite: 31 passed, 1 failed because its database-write-audit test requires PostGIS despite not carrying the integration marker. Backend tests were not modified; backend suite is not all-green in this environment. Dependency deprecation warnings were observed.
-- Frontend: `validate:provinces`, `validate:faults`, `validate:simulation`, `validate:preparedness`, `validate:assembly`, `validate:api`, `build` and `lint` all passed. The existing fault validator covers the preserved local archive; the new API checks cover runtime contracts. No new testing framework was installed.
-- Headless Edge/Playwright: all six routes checked at 1440, 768, 390 and 320 pixels, without page horizontal overflow. Real fault/assembly backend errors displayed friendly Turkish text, with loading/retry and zero fallback records. There were three expected failed-resource console messages from real HTTP errors, and no application exceptions.
-- Separate intercepted contract fixtures (test browser only) verified fault/proximity and assembly success, empty, malformed response, repeat/retry, loading/disabled submit, keyboard selection, stale-selection/cancelled-search suppression, Point/Polygon cards, point-only directions and no origin in directions URLs. Populated views also passed all four widths. No fixture-phase console errors. These checks are **not live backend success tests**; fixtures never ship as runtime data.
-- Sidebar order/keyboard and cancelled-results URL redirects passed. Browser storage/cookies stayed empty. Live Google Maps marker/polygon interactions could not be tested without a configured key; no real geolocation permission was requested. Existing geolocation unit checks remain green.
+- On 2026-09-05 the local project API health endpoint returned 200. The regional
+  fault query returned 722 real records; the selected record had no source name,
+  used the neutral fallback, and its proximity query returned a valid empty
+  collection. The live Fault page rendered all 722 segments.
+- The assembly request reached the integrated endpoint and produced the friendly
+  unavailable/error state with retry and zero fallback records. Editing cleared
+  it, and leaving during a new request produced no stale page update.
+- All seven frontend validators, production build and lint passed. The fault
+  validator covers the preserved local archive; API validation covers current
+  response contracts. No test fixture is part of runtime behavior.
+- All six routes passed browser checks in both themes at 1440, 1024, 768, 390 and
+  320 px with one h1, no page overflow and a clean console. Sidebar Escape,
+  theme keyboard operation/persistence, map keyboard selection, form validation,
+  retry and navigation cancellation were exercised.
+- No Google Maps key was configured, so live provider map/marker interaction was
+  not claimed. Both map routes rendered their missing-key states in both themes,
+  and no Google script loaded. No real geolocation permission was requested.

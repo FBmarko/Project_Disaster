@@ -1,22 +1,10 @@
 /**
  * AFET360 color palette.
  *
- * Tailwind utilities are the primary way to style components (see
- * `src/index.css`). These constants exist for cases where a raw color value is
- * needed in TypeScript — map layers, canvas/SVG fills, chart libraries.
+ * Risk-map fills require raw values because they are applied as SVG attributes.
  */
 
 import type { RiskLevel } from '@/types/risk'
-
-export const COLORS = {
-  brandRed: '#EF2B2D',
-  brandRedSoft: 'rgba(239, 43, 45, 0.08)',
-  surface: '#F8FAFC',
-  card: '#FFFFFF',
-  textPrimary: '#111827',
-  textSecondary: '#6B7280',
-  border: '#E5E7EB',
-} as const
 
 /**
  * One colour per risk level. `satisfies` keeps this in step with `RiskLevel`

@@ -12,8 +12,8 @@ export function AboutHero() {
           <BrandLogo height={44} />
         </h1>
         <p className="text-xl leading-8 font-semibold tracking-tight text-text-primary sm:text-2xl sm:leading-9">
-          Depremi anlamak, olası senaryoları deneyimlemek ve daha hazırlıklı
-          olmak için bir afet farkındalık platformu.
+          Depremle ilgili bilgileri incelemek, senaryo ayarlarını keşfetmek ve
+          daha hazırlıklı olmak için bir afet farkındalık platformu.
         </p>
         
       </div>

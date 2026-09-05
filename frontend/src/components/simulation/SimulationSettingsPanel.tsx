@@ -1,5 +1,5 @@
 import { Activity, Info, Play } from 'lucide-react'
-import { BACKEND_PENDING_MESSAGE } from '@/constants/simulation'
+import { SIMULATION_UNAVAILABLE_MESSAGE } from '@/constants/simulation'
 import type { SimulationAction, SimulationSetupState } from '@/types/simulation'
 import { prepareSimulationRequest, selectedSimulationLocation, validateSimulationDraft } from '@/utils/simulationDraft'
 import { DepthControl } from './DepthControl'
@@ -39,10 +39,10 @@ export function SimulationSettingsPanel({ state, onAction }: {
         <div>
           <button type="submit" disabled={!valid} aria-describedby="simulation-service-notice"
             className="inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-brand-red px-4 py-3 font-semibold text-white transition-colors hover:bg-brand-red-hover disabled:cursor-not-allowed disabled:opacity-45">
-            <Play size={18} fill="currentColor" aria-hidden="true" />Simülasyonu Başlat
+            <Play size={18} fill="currentColor" aria-hidden="true" />Senaryoyu Hazırla
           </button>
           <div role="status" aria-live="polite" aria-atomic="true">
-            {state.status === 'backend-pending' ? <p className="mt-3 rounded-xl border border-border-subtle bg-surface p-3 text-sm leading-6">{BACKEND_PENDING_MESSAGE}</p> : null}
+            {state.status === 'backend-pending' ? <p className="mt-3 rounded-xl border border-border-subtle bg-surface p-3 text-sm leading-6">{SIMULATION_UNAVAILABLE_MESSAGE}</p> : null}
           </div>
           <p id="simulation-service-notice" className="mt-3 flex items-start gap-2 text-xs leading-5 text-text-secondary">
             <Info size={16} className="mt-0.5 shrink-0" aria-hidden="true" />

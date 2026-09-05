@@ -17,7 +17,10 @@ export function FaultLinesMap({ features, selectedId, onSelect }: {
   const helpId = useId()
   const paths = useMemo(() => projectFaultLines(features, TURKEY_MAP), [features])
   const [active, setActive] = useState<{ path: FaultPath; placement: FaultTooltipPlacement } | null>(null)
-  const selected = paths.find((path) => path.feature.id === selectedId)
+  const selected = useMemo(
+    () => paths.find((path) => path.feature.id === selectedId),
+    [paths, selectedId],
+  )
 
   function activate(path: FaultPath, event?: PointerEvent<SVGPathElement>) {
     const rect = container.current?.getBoundingClientRect()
@@ -32,7 +35,6 @@ export function FaultLinesMap({ features, selectedId, onSelect }: {
 
   const pointerHandlers = (path: FaultPath) => ({
     onPointerEnter: (event: PointerEvent<SVGPathElement>) => activate(path, event),
-    onPointerMove: (event: PointerEvent<SVGPathElement>) => activate(path, event),
     onPointerLeave: () => setActive(null),
     onClick: () => onSelect(path.feature.id),
   })

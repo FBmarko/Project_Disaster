@@ -1,9 +1,18 @@
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Navbar } from '@/components/layout/Navbar'
 import { Sidebar } from '@/components/layout/Sidebar'
 
 const SIDEBAR_ID = 'app-sidebar'
+
+function RouteLoadingFallback() {
+  return (
+    <div role="status" aria-live="polite"
+      className="mx-auto flex min-h-48 w-full max-w-7xl items-center justify-center rounded-2xl border border-border-subtle bg-card p-6 text-sm font-medium text-text-secondary shadow-sm">
+      Sayfa yükleniyor…
+    </div>
+  )
+}
 
 /** Shell shared by every route: navbar, drawer sidebar and the routed content. */
 export function AppLayout() {
@@ -36,7 +45,9 @@ export function AppLayout() {
       />
 
       <main className="px-3 py-3 sm:px-6 sm:py-6">
-        <Outlet />
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   )

@@ -16,5 +16,5 @@ export const SIMULATION_MAP = {
 /** Google's documented development map ID enables AdvancedMarker; it is not an API key. */
 export const DEVELOPMENT_MAP_ID = 'DEMO_MAP_ID'
 
-export const BACKEND_PENDING_MESSAGE =
-  'Simülasyon servisi backend entegrasyonu tamamlandığında aktif olacaktır.'
+export const SIMULATION_UNAVAILABLE_MESSAGE =
+  'Simülasyon sonuçları şu anda kullanılamıyor. Senaryo ayarlarınızı bu sayfada hazırlayabilirsiniz.'

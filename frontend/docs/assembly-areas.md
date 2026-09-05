@@ -1,6 +1,6 @@
 # Assembly Areas — backend integration
 
-`/assembly-areas` remains after Hazırlık Rehberi in the sidebar. Simulation Results is cancelled and absent.
+`/assembly-areas` appears after Hazırlık Rehberi in the sidebar.
 
 ## Contract and data semantics
 

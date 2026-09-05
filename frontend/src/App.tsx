@@ -1,12 +1,14 @@
+import { lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ROUTES } from '@/constants/routes'
-import { AboutPage } from '@/pages/AboutPage'
-import { AssemblyAreasPage } from '@/pages/AssemblyAreasPage'
-import { FaultLinesPage } from '@/pages/FaultLinesPage'
-import { HomePage } from '@/pages/HomePage'
-import { PreparednessGuidePage } from '@/pages/PreparednessGuidePage'
-import { SimulationPage } from '@/pages/SimulationPage'
+
+const AboutPage = lazy(() => import('@/pages/AboutPage').then(({ AboutPage }) => ({ default: AboutPage })))
+const AssemblyAreasPage = lazy(() => import('@/pages/AssemblyAreasPage').then(({ AssemblyAreasPage }) => ({ default: AssemblyAreasPage })))
+const FaultLinesPage = lazy(() => import('@/pages/FaultLinesPage').then(({ FaultLinesPage }) => ({ default: FaultLinesPage })))
+const HomePage = lazy(() => import('@/pages/HomePage').then(({ HomePage }) => ({ default: HomePage })))
+const PreparednessGuidePage = lazy(() => import('@/pages/PreparednessGuidePage').then(({ PreparednessGuidePage }) => ({ default: PreparednessGuidePage })))
+const SimulationPage = lazy(() => import('@/pages/SimulationPage').then(({ SimulationPage }) => ({ default: SimulationPage })))
 
 export default function App() {
   return (

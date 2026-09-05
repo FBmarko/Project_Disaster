@@ -40,16 +40,16 @@ the page contained no `maps.googleapis.com` script.
   depth and radius. `SimulationRequestDraft` represents a future payload shape;
   it is not an API contract and is never transported or persisted.
 - The reducer owns location selection/replacement/clearing, settings changes and
-  the local submit status. Every edit clears stale backend-pending feedback.
+  the local submit status. Every edit clears stale availability feedback.
 - Pure validation requires finite geographic coordinates, 4.0–8.0 Mw magnitude,
   1–50 km depth and one of 25/50/100/150 km radii. The current UI supplies
   5/10/20/30 km depth presets.
 - Full numeric coordinate precision remains in state/payload. `toFixed(4)` is
   confined to `LocationSummary` display text.
-- Before selection, all controls and Start are disabled and an instruction is
-  visible. A valid Start prepares/validates the local payload, changes status to
-  `backend-pending`, and displays the integration-pending message. It performs no
-  navigation, timeout simulation, backend request, calculation or storage.
+- Before selection, all controls and “Senaryoyu Hazırla” are disabled and an
+  instruction is visible. A valid action prepares and validates the local payload,
+  then explains that results are unavailable. It performs no navigation, timeout
+  simulation, backend request, calculation or storage.
 - Semantic regions, headings, fieldsets, labels, native inputs/buttons, output,
   `aria-live`, `aria-invalid`, focus styles and non-color disabled/feedback text
   provide the accessibility structure. The map region includes an instruction.
@@ -66,7 +66,7 @@ the page contained no `maps.googleapis.com` script.
 
 The offline simulation validator tests initial invalid state, exact precision,
 coordinate bounds/non-finite/type rejection, control boundaries, radius options,
-valid backend-pending submit, location replacement, clearing, settings changes
+valid local submit, location replacement, clearing, settings changes
 and malformed map coordinates. It imports the same constants, types, reducer and
 validation helpers as the application and performs no network call.
 
@@ -77,8 +77,8 @@ Local Chromium verification covered:
   No page-level horizontal overflow occurred at those widths.
 - Settings component integration using an isolated local harness: exact test
   coordinates enabled controls; slider changed to 7.9 Mw; 30 km depth and
-  150 km radius selected; Start displayed only the backend-pending message and
-  stayed on the same URL; Clear removed coordinates, disabled Start and cleared
+  150 km radius selected; the primary action displayed only the unavailable-results
+  message and stayed on the same URL; Clear removed coordinates, disabled it and cleared
   stale feedback. The harness did not mount a map or provider.
 - Missing-key and map-error presentation states are readable. Sidebar marks
   Deprem Simülasyonu as current. No console warning/error was recorded in tested
