@@ -30,8 +30,16 @@ router = APIRouter()
             "description": "Structured AI preparedness guide successfully generated.",
             "model": PreparednessGuideResponse,
         },
+        status.HTTP_413_CONTENT_TOO_LARGE: {
+            "description": (
+                "Request body exceeds the configured maximum permitted size."
+            ),
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Validation error on inputs or unpermitted extra fields.",
+        },
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "description": "Rate limit exceeded for AI generation requests.",
         },
         status.HTTP_502_BAD_GATEWAY: {
             "description": "Upstream AI provider error or invalid structured output.",

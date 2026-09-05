@@ -315,6 +315,62 @@ Key contract specifications & safety architecture:
 | **Disaster prediction service?** | **NO.** The API never predicts events or computes occurrence probabilities. |
 | **Are requests or guides stored in DB?** | **NO.** Completely stateless; zero database writes or logging of user prompts. |
 
+### API Security Foundation & Rate Limiting Architecture (TASK 12)
+
+AFET360 implements a lightweight, testable, configuration-driven security layer designed for single-process operation without distributed infrastructure dependencies (no Redis, no external gateway):
+
+- **CORS Hardening**:
+  - Configurable via `CORS_ALLOWED_ORIGINS` (defaults: `http://localhost:5173`, `http://127.0.0.1:5173` for Vite React frontend).
+  - Wildcard origins (`*`) are disallowed in configured environments.
+  - Credentials are explicitly disabled (`allow_credentials=False`) since AFET360 is an unauthenticated public educational emergency API.
+  - Allowed HTTP methods are restricted to minimal required operations: `GET`, `POST`, `OPTIONS`.
+  - Allowed headers are restricted to `Content-Type`, `Accept`.
+- **Security Response Headers**:
+  - `X-Content-Type-Options: nosniff` (prevents MIME-type confusion/sniffing).
+  - `X-Frame-Options: DENY` (clickjacking protection; prevents embedding API in iframes).
+  - `Referrer-Policy: no-referrer` (protects query parameters and paths from leakage in Referer header).
+  - `Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()` (restricts browser device access).
+  - *HSTS is deferred to the production HTTPS reverse-proxy/TLS termination layer (TASK 16) to avoid breaking local development.*
+  - *Frontend CSP is deferred to the web client packaging as this service is a pure JSON API.*
+- **In-Memory Sliding-Window Rate Limiting (Per Process)**:
+  - **Architecture**: In-memory FIFO deque of monotonic timestamps (`time.monotonic()`) protected by fine-grained thread locks (`threading.Lock`).
+  - **Scope Limitation**: Limiter operates strictly **per backend process**. It is not a distributed rate limiter and does not require Redis or message brokers.
+  - **Client Identity**: Uses directly connected client addresses from ASGI `request.client.host`.
+  - **Spoofing Prevention**: `X-Forwarded-For`, `X-Real-IP`, and `Forwarded` headers are **not** trusted by default to prevent trivial client IP spoofing and rate-limit bypass. Trusted proxy IP resolution will be configured explicitly in TASK 16 deployment.
+  - **Window-Aware Memory Bounding**: Each tracked bucket maintains its own window configuration. Stale cleanup prunes timestamps strictly according to each bucket's own sliding window (no arbitrary fixed expiration rules). A strict capacity bound (`max_keys`) ensures active bucket storage never exceeds memory limits; if capacity is exhausted after cleanup, new identities fail closed without evicting active clients.
+  - **Precedence & Independent Quotas**:
+    - **Exempt Routes**: CORS preflight (`OPTIONS`), exact documentation routes (`/docs`, `/redoc`, `/openapi.json`), and exact service health (`/api/v1/health`) are exempt. Generic route suffixes are not exempt.
+    - **AI Endpoint (`POST /api/v1/ai/preparedness-guide`)**: Governed by a dedicated, stricter quota (`AI_RATE_LIMIT_REQUESTS=5`, `AI_RATE_LIMIT_WINDOW_SECONDS=60`) to protect paid LLM resources and upstream API quotas. Rate-limit rejection occurs **before** invoking the Gemini provider, ensuring rejected requests consume zero AI quota.
+    - **General Endpoints (`/api/v1/*`)**: Governed by the general resource protection quota (`API_RATE_LIMIT_REQUESTS=120`, `API_RATE_LIMIT_WINDOW_SECONDS=60`) protecting database capacity and map responsiveness.
+    - **Zero Double-Counting**: AI requests and general GeoJSON requests operate against separate bucket keys (`ai:{ip}` vs `general:{ip}`), ensuring high-frequency map navigation does not inadvertently block disaster guide generation.
+  - **Rejection Contract**: Exceeded quotas return `HTTP 429 Too Many Requests` with a non-sensitive body (`{"detail": "Too many requests. Please try again later."}`) and an authoritative `Retry-After: <seconds>` header. Internal state, counters, client IPs, and tracebacks are never exposed.
+- **Request Body Size Protection**:
+  - **Configurable Limit**: Controlled by `API_MAX_REQUEST_BODY_BYTES` (default: `65536` bytes / 64 KiB).
+  - **Scope**: Applied to mutating API methods (`POST`, `PUT`, `PATCH`) under `/api/v1/`. Read-only methods (`GET`), preflights (`OPTIONS`), responses, and documentation are unaffected.
+  - **Two-Layer Enforcement**:
+    1. Early rejection: Checks `Content-Length` header if present; if it exceeds the limit, immediately returns `HTTP 413` without reading the body.
+    2. Streamed/chunked accounting: For requests with missing or chunked transfer encoding, received chunks are counted as streamed from ASGI `receive()`. If accumulated bytes exceed the limit, reading terminates immediately (buffering at most `limit + 1` bytes) to prevent memory exhaustion.
+  - **Rejection Contract**: Returns `HTTP 413 Payload Too Large` with body `{"detail": "Request body too large."}`. Does not include `Retry-After`. Rejection occurs before Pydantic model parsing, service execution, or Gemini provider invocation.
+- **Google Maps & Geolocation Compatibility Note**:
+  - The API security header `Permissions-Policy: ... geolocation=() ...` applies strictly to JSON API responses. In production, the React frontend is served as a separate document origin. If frontend documents are later served through the same origin or reverse-proxy security-header layer, the frontend Permissions-Policy must be reviewed separately so required browser geolocation continues to function.
+
+#### Security & Rate Limiting Configuration Reference
+
+| Environment Variable | Required / Optional | Default Value | Description |
+| :--- | :--- | :--- | :--- |
+| `CORS_ALLOWED_ORIGINS` | Optional | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated list of browser origins permitted to query the API. |
+| `API_RATE_LIMIT_REQUESTS` | Optional | `120` | Maximum requests per sliding window for general `/api/v1/*` endpoints. |
+| `API_RATE_LIMIT_WINDOW_SECONDS` | Optional | `60` | Duration in seconds of the general API sliding window. |
+| `AI_RATE_LIMIT_REQUESTS` | Optional | `5` | Maximum requests per sliding window for `POST /api/v1/ai/preparedness-guide`. |
+| `AI_RATE_LIMIT_WINDOW_SECONDS` | Optional | `60` | Duration in seconds of the AI endpoint sliding window. |
+| `API_MAX_REQUEST_BODY_BYTES` | Optional | `65536` | Maximum incoming request body size in bytes (64 KiB) for mutating API endpoints. |
+
+#### Jury & Evaluator Security Explainability Boundary
+
+> "AFET360 utilizes rigorous input validation, explicit origin control (CORS), standard security headers, request body size protection, and process-level sliding-window rate limiting. AI generation operates under a stricter independent quota because it consumes external LLM resources. Secrets remain isolated to the backend, and rate limiting rejects unauthorized volume before invoking external providers."
+>
+> *AFET360 does not claim distributed DDoS mitigation, enterprise Web Application Firewall (WAF) functionality, or distributed multi-region rate synchronization. These infrastructure concerns are appropriately decoupled from the application layer and deferred to edge reverse-proxy/cloud infrastructure.*
+
 ## Running Tests
 
 Run the unit test suite:

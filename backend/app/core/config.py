@@ -1,4 +1,4 @@
-from pydantic import computed_field
+from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,6 +23,47 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-3.8-flash"
     GEMINI_TIMEOUT_SECONDS: float = 30.0
+
+    # CORS configuration
+    CORS_ALLOWED_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
+    # Rate Limiting configuration (per process in-memory)
+    API_RATE_LIMIT_REQUESTS: int = 120
+    API_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    AI_RATE_LIMIT_REQUESTS: int = 5
+    AI_RATE_LIMIT_WINDOW_SECONDS: int = 60
+
+    # Request Body Size Limit (64 KiB default)
+    API_MAX_REQUEST_BODY_BYTES: int = 65536
+
+    @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: object) -> list[str]:
+        """Parse and sanitize CORS origins from comma-separated string or list."""
+        if isinstance(value, str):
+            value = [orig.strip() for orig in value.split(",") if orig.strip()]
+        if isinstance(value, list):
+            return [str(orig).strip() for orig in value if str(orig).strip()]
+        return ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    @field_validator(
+        "API_RATE_LIMIT_REQUESTS",
+        "API_RATE_LIMIT_WINDOW_SECONDS",
+        "AI_RATE_LIMIT_REQUESTS",
+        "AI_RATE_LIMIT_WINDOW_SECONDS",
+        "API_MAX_REQUEST_BODY_BYTES",
+    )
+    @classmethod
+    def validate_positive_integer(cls, value: int) -> int:
+        """Ensure rate limit and size limit values are strictly positive integers."""
+        if value <= 0:
+            raise ValueError(
+                "Rate limit and request body size settings must be greater than 0."
+            )
+        return value
 
     @computed_field
     @property
