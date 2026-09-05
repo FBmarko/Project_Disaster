@@ -1,0 +1,19 @@
+{
+  "dataset": "GEM Global Active Faults Database",
+  "revision": "56816508ad92fd6846dad1163b1c8c01376a2cd1",
+  "sourceUrl": "https://raw.githubusercontent.com/GEMScienceTools/gem-global-active-faults/56816508ad92fd6846dad1163b1c8c01376a2cd1/geojson/gem_active_faults.geojson",
+  "license": "CC-BY-SA-4.0",
+  "sourceSha256": "603513086b4693de6008e3444959995c34683b30dac291856340522a76d8505e",
+  "accessed": "2026-09-03",
+  "filter": "catalog_name === EMME; catalog_id starts ME_TR; at least one original vertex within the province bounding box (inclusive). Whole features retained in source order.",
+  "bounds": {
+    "west": 25.665136337280273,
+    "east": 44.83383941650408,
+    "south": 35.815425872802905,
+    "north": 42.1054115295413
+  },
+  "originalFeatureCount": 16195,
+  "featureCount": 321,
+  "coordinatesPreserved": true,
+  "canonicalSha256": "0339693e412345c688644b4b74fb2dd2afde12526f24a55d8ff79c7b3d6e34db"
+}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>AFET360</title>
+    <script>
+      ;(() => {
+        const query = '(prefers-color-scheme: dark)'
+        let storedTheme = null
+
+        try {
+          storedTheme = localStorage.getItem('afet360-theme')
+        } catch {
+          // Storage can be unavailable in privacy-restricted browser contexts.
+        }
+
+        const prefersDark = window.matchMedia?.(query).matches ?? false
+        const isDark =
+          storedTheme === 'dark' || (storedTheme !== 'light' && prefersDark)
+
+        document.documentElement.classList.toggle('dark', isDark)
+        document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

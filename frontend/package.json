@@ -1,0 +1,37 @@
+{
+  "name": "afet360-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "validate:provinces": "node scripts/validate-provinces.ts",
+    "validate:faults": "node scripts/validate-faults.ts",
+    "validate:simulation": "node scripts/validate-simulation.ts",
+    "validate:preparedness": "node scripts/validate-preparedness.ts",
+    "validate:assembly": "node scripts/validate-assembly.ts",
+    "validate:api": "node scripts/validate-api.ts",
+    "validate:theme": "node scripts/validate-theme.ts"
+  },
+  "dependencies": {
+    "@vis.gl/react-google-maps": "^1.9.0",
+    "lucide-react": "^0.549.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.9.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "oxlint": "^1.79.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2"
+  }
+}
