@@ -686,18 +686,21 @@ python -m app.scripts.import_osm_assembly_areas --snapshot "$env:LOCALAPPDATA\AF
 - **Approved Snapshot Scope**: The current approved snapshot contains exactly **678 features** (650 nodes / Points, 28 closed ways / Polygons, 0 relations) across Türkiye.
 - **Raw Snapshot Git Exclusion**: The raw JSON snapshot artifact remains strictly outside the Git repository in external cache storage (`%LOCALAPPDATA%\AFET360\assembly-cache\...`) to preserve repository hygiene.
 - **Neutral Community Terminology & Non-Official Nature**: Assembly area data represents community-mapped gathering points (`emergency=assembly_point`) from OpenStreetMap. **This data is NOT official Turkish government / AFAD disaster gathering area data** (*"Afet ve Acil Durum Toplanma Alanları"*). It does not carry official emergency management verification, structural safety clearance, or safe-route guarantees.
-- **Internal Staging Boundary**: Public assembly-area API routes (`/api/v1/assembly-areas`) are **not yet added** to FastAPI; the tables currently serve as internal persistence/staging. Public API endpoints and compliance headers are scheduled for TASK 10B-2B.
+- **Public API Exposure**: Public assembly-area API routes (`/api/v1/assembly-areas`, `/nearby`, `/dataset`) are fully operational with GeoJSON FeatureCollection serialization and spatial proximity queries.
 
 ## Current Phase
 
-This repository currently represents **Phase 10B-2A: Assembly Area Persistence + Reproducible OSM Snapshot Importer**.
+This repository currently represents **Phase 13: Comprehensive Backend Test Coverage + Final Public Contract Audit**.
 
 At this stage:
 - PostGIS database migrations (`0001` - `0005`) are fully applied and operational.
-- Public Fault Lines GeoJSON API (`/api/v1/fault-lines`) is operational.
-- Public Earthquake GeoJSON & Proximity API (`/api/v1/earthquakes`) is operational.
-- Public Earthquake Hazard GeoJSON API (`/api/v1/earthquake-hazards`) is operational (11 total OpenAPI endpoints).
+- Public Fault Lines GeoJSON API (`/api/v1/fault-lines`) is operational (4 endpoints).
+- Public Earthquake GeoJSON & Proximity API (`/api/v1/earthquakes`) is operational (3 endpoints).
+- Public Earthquake Hazard GeoJSON API (`/api/v1/earthquake-hazards`) is operational (3 endpoints).
+- Public Emergency Assembly Area GeoJSON API (`/api/v1/assembly-areas`) is operational (3 endpoints).
+- Public AI Preparedness Guide API (`/api/v1/ai/preparedness-guide`) is operational with Gemini integration (1 endpoint).
+- Public Health API (`/api/v1/health`) is operational (1 endpoint, 15 total OpenAPI endpoints).
+- API Security Foundation, sliding-window rate limiting, and request body size limiting (TASK 12) are fully active.
 - GEM GSHM hazard dataset and 54,291 Türkiye-context hazard points are persisted and active.
 - OpenStreetMap assembly area dataset provenance and 678 assembly features (650 Points, 28 Polygons) are persisted and verified.
-- **Public Assembly Area REST API (`/api/v1/assembly-areas`)** is **NOT** exposed yet (designated for TASK 10B-2B).
-- **User authentication/accounts** and **AI disaster assistant** have **NOT** been implemented yet.
+- User authentication and persistent user accounts are intentionally omitted by architectural design.
