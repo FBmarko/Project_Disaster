@@ -178,6 +178,7 @@ EXEMPT_PATHS = {
 }
 
 AI_PATH = "/api/v1/ai/preparedness-guide"
+RATE_LIMIT_DETAIL = "Too many requests. Please try again later."
 
 
 class RateLimitMiddleware:
@@ -246,7 +247,7 @@ class RateLimitMiddleware:
         if not allowed:
             response = JSONResponse(
                 status_code=429,
-                content={"detail": "Too many requests. Please try again later."},
+                content={"detail": RATE_LIMIT_DETAIL},
                 headers={"Retry-After": str(retry_after)},
             )
             await response(scope, receive, send)

@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
-from app.core.rate_limit import rate_limiter
+from app.core.rate_limit import RATE_LIMIT_DETAIL, rate_limiter
 from app.integrations.ai.dependencies import get_ai_provider
 from app.main import app
 from app.schemas.ai import PreparednessGuideContent
@@ -296,3 +296,80 @@ def test_forwarded_headers_do_not_bypass_rate_limit(
         headers={"X-Forwarded-For": "2.2.2.2"},
     )
     assert r2.status_code == 429
+
+
+def test_rate_limit_429_exact_contract_stability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verifies that both general and AI 429 rejections return the exact
+    stable public contract:
+      HTTP 429
+      {"detail": "Too many requests. Please try again later."}
+      Retry-After: positive integer
+    and never leak IP, bucket key, counter, or quota internals.
+    Also verifies external AI provider is never invoked on rate limit rejection.
+    """
+    monkeypatch.setattr(settings, "API_RATE_LIMIT_REQUESTS", 1)
+    monkeypatch.setattr(settings, "AI_RATE_LIMIT_REQUESTS", 1)
+
+    mock_provider = MagicMock()
+    mock_provider.generate_guide.return_value = PreparednessGuideContent(
+        summary="Sample summary",
+        before=["Before step"],
+        during=["During step"],
+        after=["After step"],
+        emergency_kit=["Kit item"],
+        important_notes=[],
+    )
+    app.dependency_overrides[get_ai_provider] = lambda: mock_provider
+
+    try:
+        # 1. General endpoint rejection contract
+        res_gen_ok = client.get("/api/v1/fault-lines")
+        assert res_gen_ok.status_code == 200
+
+        res_gen_blocked = client.get("/api/v1/fault-lines")
+        assert res_gen_blocked.status_code == 429
+        assert res_gen_blocked.json() == {
+            "detail": "Too many requests. Please try again later."
+        }
+        assert res_gen_blocked.json()["detail"] == RATE_LIMIT_DETAIL
+        assert "retry-after" in res_gen_blocked.headers
+        assert int(res_gen_blocked.headers["retry-after"]) >= 1
+
+        # Confirm no leakage of internals
+        raw_text_gen = res_gen_blocked.text
+        assert "general:" not in raw_text_gen
+        assert "client" not in raw_text_gen
+        assert "bucket" not in raw_text_gen
+        assert "counter" not in raw_text_gen
+
+        # 2. AI endpoint rejection contract
+        res_ai_ok = client.post(
+            "/api/v1/ai/preparedness-guide", json={"disaster_type": "earthquake"}
+        )
+        assert res_ai_ok.status_code == 200
+        assert mock_provider.generate_guide.call_count == 1
+
+        res_ai_blocked = client.post(
+            "/api/v1/ai/preparedness-guide", json={"disaster_type": "flood"}
+        )
+        assert res_ai_blocked.status_code == 429
+        assert res_ai_blocked.json() == {
+            "detail": "Too many requests. Please try again later."
+        }
+        assert res_ai_blocked.json()["detail"] == RATE_LIMIT_DETAIL
+        assert "retry-after" in res_ai_blocked.headers
+        assert int(res_ai_blocked.headers["retry-after"]) >= 1
+
+        # Provider must NOT be called for rejected request
+        assert mock_provider.generate_guide.call_count == 1
+
+        # Confirm no leakage of internals in AI rejection
+        raw_text_ai = res_ai_blocked.text
+        assert "ai:" not in raw_text_ai
+        assert "client" not in raw_text_ai
+        assert "bucket" not in raw_text_ai
+        assert "counter" not in raw_text_ai
+    finally:
+        app.dependency_overrides.pop(get_ai_provider, None)
