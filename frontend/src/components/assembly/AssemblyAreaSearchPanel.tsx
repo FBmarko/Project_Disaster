@@ -26,8 +26,8 @@ export function AssemblyAreaSearchPanel({ locationStatus, loading, onLocate, onS
       <p id="assembly-radius-hint" className="mt-2 text-xs leading-5 text-text-secondary">0'dan büyük, en fazla 200 km. Arama uzaklığı güvenli tahliye veya yürüyüş mesafesi değildir.</p>
       <button type="button" disabled={loading || locationStatus === 'loading' || !validRadius} onClick={() => { setError(''); onLocate(Number(radius)) }}
         aria-describedby="assembly-location-privacy assembly-location-status"
-        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-brand-red bg-brand-red-soft px-3 py-3 text-sm font-semibold hover:bg-red-100 disabled:opacity-60">
-        <LocateFixed size={20} aria-hidden="true" className="shrink-0 text-brand-red" />
+        className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-brand-red bg-brand-red-soft px-3 py-3 text-sm font-semibold hover:bg-brand-red-soft disabled:opacity-60">
+        <LocateFixed size={20} aria-hidden="true" className="shrink-0 text-brand-red-foreground" />
         {locationStatus === 'loading' ? 'Konumunuz alınıyor…' : 'Konumumu Kullan'}
       </button>
       <p id="assembly-location-privacy" className="mt-3 text-xs leading-5 text-text-secondary">Konum paylaşımı isteğe bağlıdır. Bu düğmeyle konumunuz yakındaki noktaları aramak için gönderilir. Tarayıcıda kalıcı olarak saklanmaz.</p>
@@ -47,8 +47,8 @@ export function AssemblyAreaSearchPanel({ locationStatus, loading, onLocate, onS
         <div><label htmlFor="assembly-longitude" className="mb-2 block text-sm font-medium">Boylam</label>
           <input id="assembly-longitude" name="longitude" type="number" min="-180" max="180" step="any" value={longitude} className={controlClass}
             onChange={event => { setLongitude(event.target.value); setError(''); onEdit() }} /></div>
-        {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
-        <button type="submit" disabled={loading || locationStatus === 'loading'} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-brand-red px-3 py-3 text-[19px] font-bold text-white hover:bg-red-600 disabled:opacity-60">
+        {error ? <p role="alert" className="text-sm text-error">{error}</p> : null}
+        <button type="submit" disabled={loading || locationStatus === 'loading'} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-brand-red px-3 py-3 text-[19px] font-bold text-white hover:bg-brand-red-hover disabled:opacity-60">
           <Search size={20} aria-hidden="true" className="shrink-0" />{loading ? 'Alanlar Aranıyor…' : 'Alanları Göster'}
         </button>
       </form>

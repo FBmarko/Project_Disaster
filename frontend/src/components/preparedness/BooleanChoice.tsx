@@ -24,7 +24,7 @@ export function BooleanChoice({ name, label, value, error, onChange }: {
           </label>
         ))}
       </div>
-      {error ? <p id={errorId} className="mt-2 text-sm text-red-700">{error}</p> : null}
+      {error ? <p id={errorId} className="mt-2 text-sm text-error">{error}</p> : null}
     </fieldset>
   )
 }

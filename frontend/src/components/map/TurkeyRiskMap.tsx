@@ -22,8 +22,8 @@ type ActiveProvince = {
 }
 
 /** Provinces are near-white until hovered, as in the design reference. */
-const NEUTRAL_FILL = '#FFFFFF'
-const BORDER_COLOR = '#1F2937'
+const NEUTRAL_FILL = 'var(--color-map-land)'
+const BORDER_COLOR = 'var(--color-map-border)'
 
 /**
  * Interactive province map of Turkey.

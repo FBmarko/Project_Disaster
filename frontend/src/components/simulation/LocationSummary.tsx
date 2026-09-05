@@ -10,7 +10,7 @@ export function LocationSummary({ location, onClear }: {
       <h3 id="simulation-location-heading" className="font-semibold">Seçilen Konum</h3>
       <div className="mt-3 rounded-xl border border-border-subtle bg-surface/50 p-4">
         <div className="flex items-start gap-3">
-          <MapPin size={21} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-red" />
+          <MapPin size={21} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-red-foreground" />
           <div aria-live="polite" aria-atomic="true" className="min-w-0 flex-1">
             {location ? <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm tabular-nums">
               <dt className="text-text-secondary">Enlem</dt><dd>{location.latitude.toFixed(4)}°</dd>
@@ -19,7 +19,7 @@ export function LocationSummary({ location, onClear }: {
           </div>
         </div>
         {location ? <button type="button" onClick={onClear}
-          className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-text-secondary hover:bg-white hover:text-brand-red">
+          className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-text-secondary hover:bg-card hover:text-brand-red-foreground">
           <X size={15} aria-hidden="true" />Konumu Temizle
         </button> : null}
       </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { APIProvider, APILoadingStatus, AdvancedMarker, Map, Pin, useApiLoadingStatus } from '@vis.gl/react-google-maps'
 import { DEVELOPMENT_MAP_ID, SIMULATION_MAP } from '@/constants/simulation'
+import { useTheme } from '@/hooks/useTheme'
 import type { SimulationLocation } from '@/types/simulation'
 import { SimulationMapState } from './SimulationMapState'
 
@@ -13,6 +14,7 @@ type MapProps = {
 let authenticationFailed = false
 
 function MapScene({ location, onSelect, loaderFailed }: MapProps & { loaderFailed: boolean }) {
+  const { theme } = useTheme()
   const status = useApiLoadingStatus()
   const [authFailed, setAuthFailed] = useState(authenticationFailed)
   const [tilesReady, setTilesReady] = useState(false)
@@ -46,7 +48,7 @@ function MapScene({ location, onSelect, loaderFailed }: MapProps & { loaderFaile
     <>
       <Map defaultCenter={SIMULATION_MAP.center} defaultZoom={SIMULATION_MAP.zoom}
         defaultBounds={SIMULATION_MAP.bounds} mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID?.trim() || DEVELOPMENT_MAP_ID}
-        colorScheme="LIGHT" mapTypeId="roadmap" gestureHandling="cooperative"
+        colorScheme={theme === 'dark' ? 'DARK' : 'LIGHT'} mapTypeId="roadmap" gestureHandling="cooperative"
         streetViewControl={false} mapTypeControl={false} fullscreenControl={false}
         rotateControl={false} cameraControl={false} zoomControl={true} clickableIcons={false}
         reuseMaps onTilesLoaded={() => setTilesReady(true)} onClick={(event) => {

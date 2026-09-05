@@ -42,7 +42,7 @@ export function FaultLinesMap({ features, selectedId, onSelect }: {
       <p id={helpId} className="sr-only">Fay segmentlerini Tab ile gezin; Enter veya Boşluk ile seçin. İsterseniz haritanın altındaki seçim listesini kullanın.</p>
       <svg viewBox={TURKEY_MAP.viewBox} className="block h-auto w-full overflow-hidden"
         role="group" aria-label="Türkiye aktif fay haritası" aria-describedby={helpId}>
-        <g aria-hidden="true" fill="#FFFFFF" stroke="#9CA3AF" strokeWidth={0.8}>
+        <g aria-hidden="true" fill="var(--color-map-land)" stroke="var(--color-map-border-muted)" strokeWidth={0.8}>
           {TURKEY_MAP.provinces.map((province) => <path key={province.name} d={province.d}
             fillRule="evenodd" vectorEffect="non-scaling-stroke" />)}
         </g>
@@ -59,17 +59,17 @@ export function FaultLinesMap({ features, selectedId, onSelect }: {
               if (event.key === 'Escape') setActive(null)
             }} />)}
         </g>
-        <g aria-hidden="true" fill="none" stroke="#EF2B2D" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+        <g aria-hidden="true" fill="none" stroke="var(--color-fault-line)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
           {paths.map((path) => <path key={path.feature.id} d={path.d}
             vectorEffect="non-scaling-stroke" className="cursor-pointer" {...pointerHandlers(path)} />)}
         </g>
         {/* Persistent selection has a white casing and a substantially thicker red stroke. */}
         <g aria-hidden="true" pointerEvents="none" fill="none" strokeLinecap="round" strokeLinejoin="round">
           {selected ? <>
-            <path d={selected.d} stroke="white" strokeWidth={6} vectorEffect="non-scaling-stroke" />
-            <path d={selected.d} stroke="#B91C1C" strokeWidth={3.5} vectorEffect="non-scaling-stroke" />
+            <path d={selected.d} stroke="var(--color-map-selection-casing)" strokeWidth={6} vectorEffect="non-scaling-stroke" />
+            <path d={selected.d} stroke="var(--color-map-selection)" strokeWidth={3.5} vectorEffect="non-scaling-stroke" />
           </> : null}
-          {active && active.path.feature.id !== selectedId ? <path d={active.path.d} stroke="#B91C1C" strokeWidth={2.8} vectorEffect="non-scaling-stroke" /> : null}
+          {active && active.path.feature.id !== selectedId ? <path d={active.path.d} stroke="var(--color-map-selection)" strokeWidth={2.8} vectorEffect="non-scaling-stroke" /> : null}
         </g>
       </svg>
       {active ? <FaultTooltip id={tooltipId} feature={active.path.feature}

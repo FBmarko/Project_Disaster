@@ -19,7 +19,7 @@ export function SimulationSettingsPanel({ state, onAction }: {
   return (
     <section aria-labelledby="simulation-settings-heading" className="min-w-0 rounded-2xl border border-border-subtle bg-card p-5 shadow-sm sm:p-6">
       <h2 id="simulation-settings-heading" className="flex items-center gap-3 text-xl font-semibold">
-        <Activity size={28} aria-hidden="true" className="shrink-0 text-brand-red" />Simülasyon Ayarları
+        <Activity size={28} aria-hidden="true" className="shrink-0 text-brand-red-foreground" />Simülasyon Ayarları
       </h2>
       <form noValidate className="mt-6 space-y-6" onSubmit={(event) => {
         event.preventDefault()
@@ -38,7 +38,7 @@ export function SimulationSettingsPanel({ state, onAction }: {
         </fieldset>
         <div>
           <button type="submit" disabled={!valid} aria-describedby="simulation-service-notice"
-            className="inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-brand-red px-4 py-3 font-semibold text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-45">
+            className="inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-brand-red px-4 py-3 font-semibold text-white transition-colors hover:bg-brand-red-hover disabled:cursor-not-allowed disabled:opacity-45">
             <Play size={18} fill="currentColor" aria-hidden="true" />Simülasyonu Başlat
           </button>
           <div role="status" aria-live="polite" aria-atomic="true">

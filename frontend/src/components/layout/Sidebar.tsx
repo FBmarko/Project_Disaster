@@ -44,7 +44,7 @@ const secondaryNavItems: NavItem[] = [
 const itemBaseClass =
   'flex items-center gap-4 rounded-xl px-4 py-3 text-[15px] font-medium transition-colors'
 const itemIdleClass = 'text-text-primary hover:bg-surface'
-const itemActiveClass = 'bg-brand-red-soft text-brand-red'
+const itemActiveClass = 'bg-brand-red-soft text-brand-red-foreground'
 
 function SidebarNavItem({
   item,
@@ -108,7 +108,7 @@ export function Sidebar({ id, isOpen, onClose }: SidebarProps) {
         aria-label="Site menüsü"
         aria-hidden={!isOpen}
         inert={!isOpen ? true : undefined}
-        className={`fixed top-3 bottom-3 left-3 z-50 flex w-[calc(100vw-1.5rem)] max-w-[340px] flex-col rounded-2xl bg-card shadow-xl transition-transform duration-200 ease-out sm:w-[320px] ${
+        className={`fixed top-3 bottom-3 left-3 z-50 flex w-[calc(100vw-1.5rem)] max-w-[340px] flex-col rounded-2xl border border-border-subtle bg-card shadow-xl transition-transform duration-200 ease-out sm:w-[320px] ${
           isOpen ? 'translate-x-0' : '-translate-x-[calc(100%+0.75rem)]'
         }`}
       >

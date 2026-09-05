@@ -8,7 +8,7 @@ export function SafetyNotice() {
     >
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
         <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-card text-brand-red shadow-sm"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-card text-brand-red-foreground shadow-sm"
           aria-hidden="true"
         >
           <ShieldAlert size={23} />

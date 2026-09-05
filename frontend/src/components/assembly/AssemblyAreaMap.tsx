@@ -31,7 +31,7 @@ export function AssemblyAreaMap(props: AssemblyMapProps) {
       </div>
       <div aria-label="Harita işaretleri" className="flex flex-wrap gap-x-5 gap-y-2 border-t border-border-subtle px-4 py-3 text-xs leading-5 text-text-secondary">
         <span className="flex items-center gap-2"><LocateFixed size={16} aria-hidden="true" className="text-blue-700" />Kullanıcı Konumu</span>
-        <span className="flex items-center gap-2"><MapPin size={16} aria-hidden="true" className="text-brand-red" />Toplanma Alanı</span>
+        <span className="flex items-center gap-2"><MapPin size={16} aria-hidden="true" className="text-brand-red-foreground" />Toplanma Alanı</span>
       </div>
     </section>
   )

@@ -5,9 +5,9 @@ import type { PreparednessAction, PreparednessDraft, PreparednessState } from '@
 import { validatePreparednessDraft } from '@/utils/preparednessDraft'
 import { BooleanChoice } from './BooleanChoice'
 
-const controlClass = 'min-h-12 w-full min-w-0 rounded-xl border border-border-subtle bg-card px-3 py-2 text-sm text-text-primary aria-invalid:border-red-700'
+const controlClass = 'min-h-12 w-full min-w-0 rounded-xl border border-border-subtle bg-card px-3 py-2 text-sm text-text-primary aria-invalid:border-error'
 const labelClass = 'mb-2 block text-sm font-medium'
-const errorClass = 'mt-2 text-sm text-red-700'
+const errorClass = 'mt-2 text-sm text-error'
 
 export function PreparednessForm({ state, onAction }: {
   state: PreparednessState
@@ -22,7 +22,7 @@ export function PreparednessForm({ state, onAction }: {
   return (
     <section aria-labelledby="preparedness-form-heading" className="min-w-0 rounded-2xl border border-border-subtle bg-card p-5 shadow-sm sm:p-7">
       <h2 id="preparedness-form-heading" className="flex items-center gap-3 text-xl font-semibold">
-        <UsersRound size={23} aria-hidden="true" className="shrink-0 text-brand-red" />
+        <UsersRound size={23} aria-hidden="true" className="shrink-0 text-brand-red-foreground" />
         Evinizi tanıyalım
       </h2>
       <p className="mt-2 text-sm leading-6 text-text-secondary">Hazırlık ihtiyaçlarınızı belirlemek için tüm alanları doldurun.</p>
@@ -76,7 +76,7 @@ export function PreparednessForm({ state, onAction }: {
         {Object.keys(errors).length ? <p role="alert" className={errorClass}>Lütfen işaretli alanları kontrol edin.</p> : null}
         <div>
           <button type="submit" aria-describedby="preparedness-availability"
-            className="flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-brand-red px-4 py-3 text-[19px] font-bold text-white hover:bg-red-600">
+            className="flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-brand-red px-4 py-3 text-[19px] font-bold text-white hover:bg-brand-red-hover">
             Rehberimi Oluştur <ArrowRight size={18} aria-hidden="true" className="shrink-0" />
           </button>
           <p id="preparedness-availability" className="mt-3 text-xs leading-5 text-text-secondary">

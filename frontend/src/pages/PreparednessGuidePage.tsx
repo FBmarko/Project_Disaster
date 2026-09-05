@@ -11,7 +11,7 @@ export function PreparednessGuidePage() {
     <div className="mx-auto w-full max-w-6xl space-y-5 sm:space-y-6">
       <header className="rounded-2xl border border-border-subtle bg-card p-5 shadow-sm sm:p-8">
         <div className="mb-4 flex items-center gap-2 text-sm font-medium text-text-secondary">
-          <ClipboardCheck size={19} aria-hidden="true" className="text-brand-red" />Hazırlık Rehberi
+          <ClipboardCheck size={19} aria-hidden="true" className="text-brand-red-foreground" />Hazırlık Rehberi
         </div>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Kişisel Hazırlık Rehberi</h1>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-text-secondary sm:text-base">

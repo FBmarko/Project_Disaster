@@ -24,7 +24,7 @@ export function BrandLogo({ height = 32, className }: BrandLogoProps) {
         style={{ height }}
       >
         <Activity
-          className="text-brand-red"
+          className="text-brand-red-foreground"
           size={Math.round(height * 0.75)}
           aria-hidden="true"
         />
@@ -32,7 +32,7 @@ export function BrandLogo({ height = 32, className }: BrandLogoProps) {
           className="font-bold tracking-tight text-text-primary"
           style={{ fontSize: Math.round(height * 0.68) }}
         >
-          AFET<span className="text-brand-red">360</span>
+          AFET<span className="text-brand-red-foreground">360</span>
         </span>
       </span>
     )
@@ -44,7 +44,7 @@ export function BrandLogo({ height = 32, className }: BrandLogoProps) {
       alt="AFET360"
       height={height}
       style={{ height }}
-      className={`w-auto select-none ${className ?? ''}`}
+      className={`w-auto select-none rounded-sm bg-logo-surface ${className ?? ''}`}
       onError={() => setFailed(true)}
       draggable={false}
     />

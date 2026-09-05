@@ -10,7 +10,7 @@ export function PreparednessGuideResults({ guide }: { guide: PreparednessGuide |
       <h2 id="preparedness-results-heading" className="text-xl font-semibold">Hazırlık Rehberiniz</h2>
       {!guide ? (
         <div className="my-6 rounded-xl border border-dashed border-border-subtle bg-surface px-4 py-7 text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-card text-brand-red shadow-sm">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-card text-brand-red-foreground shadow-sm">
             <ClipboardList size={25} aria-hidden="true" />
           </span>
           <p className="mt-4 font-medium">Hazırlık, evinizi tanımakla başlar</p>

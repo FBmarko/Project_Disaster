@@ -24,14 +24,14 @@ export function FaultLinesPage() {
         <FaultLinesMap features={features} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
         <div className="mt-5 flex flex-col gap-4 border-t border-border-subtle pt-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-text-secondary">
-            <span className="flex items-center gap-2"><span className="h-0.5 w-6 bg-brand-red" aria-hidden="true" />Aktif fay segmenti</span>
-            <span className="flex items-center gap-2"><span className="h-1 w-6 bg-red-700" aria-hidden="true" />Seçili segment</span>
+            <span className="flex items-center gap-2"><span className="h-0.5 w-6 bg-fault-line" aria-hidden="true" />Aktif fay segmenti</span>
+            <span className="flex items-center gap-2"><span className="h-1 w-6 bg-map-selection" aria-hidden="true" />Seçili segment</span>
             {result.status === 'success' ? <span>{features.length} segment</span> : null}
           </div>
           <div className="flex min-w-0 flex-col gap-1 sm:w-80">
             <label htmlFor="fault-select" className="text-xs font-medium text-text-secondary">Fay segmenti seçin</label>
             <select id="fault-select" value={selected?.id ?? ''} onChange={event => setSelectedId(event.target.value || null)}
-              disabled={!features.length} className="min-h-11 w-full min-w-0 rounded-lg border border-border-subtle bg-white px-3 text-sm">
+              disabled={!features.length} className="min-h-11 w-full min-w-0 rounded-lg border border-border-subtle bg-card px-3 text-sm text-text-primary">
               <option value="">Haritadan veya listeden seçin</option>
               {features.map(feature => <option key={feature.id} value={feature.id}>{feature.properties.displayName} · {feature.properties.sourceId}</option>)}
             </select>

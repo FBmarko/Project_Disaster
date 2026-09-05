@@ -3,6 +3,7 @@ import { LocateFixed } from 'lucide-react'
 import { APIProvider, APILoadingStatus, AdvancedMarker, Map, Pin, useApiLoadingStatus, useMap } from '@vis.gl/react-google-maps'
 import { DEVELOPMENT_MAP_ID, SIMULATION_MAP as TURKEY_MAP_VIEW } from '@/constants/simulation'
 import { hasValidAssemblyCoordinates } from '@/utils/assemblyAreas'
+import { useTheme } from '@/hooks/useTheme'
 import type { AssemblyMapProps } from './AssemblyAreaMap'
 import type { AssemblyArea, AssemblyCoordinates } from '@/types/assembly'
 import { AssemblyAreaMapState } from './AssemblyAreaMapState'
@@ -54,6 +55,7 @@ function AssemblyPolygons({ areas, selectedAreaId, onSelect }: AssemblyMapProps)
 }
 
 function MapScene(props: AssemblyMapProps & { loaderFailed: boolean }) {
+  const { theme } = useTheme()
   const status = useApiLoadingStatus()
   const [authFailed, setAuthFailed] = useState(authenticationFailed)
   const [tilesReady, setTilesReady] = useState(false)
@@ -77,7 +79,7 @@ function MapScene(props: AssemblyMapProps & { loaderFailed: boolean }) {
     <>
       <Map id="assembly-map" defaultCenter={TURKEY_MAP_VIEW.center} defaultZoom={TURKEY_MAP_VIEW.zoom}
         defaultBounds={TURKEY_MAP_VIEW.bounds} mapId={import.meta.env.VITE_GOOGLE_MAPS_MAP_ID?.trim() || DEVELOPMENT_MAP_ID}
-        colorScheme="LIGHT" mapTypeId="roadmap" gestureHandling="cooperative"
+        colorScheme={theme === 'dark' ? 'DARK' : 'LIGHT'} mapTypeId="roadmap" gestureHandling="cooperative"
         streetViewControl={false} mapTypeControl={false} fullscreenControl={false}
         rotateControl={false} cameraControl={false} zoomControl clickableIcons={false}
         reuseMaps={false} onTilesLoaded={() => setTilesReady(true)}>
@@ -85,7 +87,7 @@ function MapScene(props: AssemblyMapProps & { loaderFailed: boolean }) {
         <AssemblyPolygons {...props} />
         {hasValidAssemblyCoordinates(props.userLocation) ? <AdvancedMarker
           position={{ lat: props.userLocation.latitude, lng: props.userLocation.longitude }} title="Kullanıcı Konumu">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-white bg-blue-700 text-white shadow-md">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-card bg-location text-white shadow-md">
             <LocateFixed size={23} aria-hidden="true" /><span className="sr-only">Kullanıcı Konumu</span>
           </span>
         </AdvancedMarker> : null}

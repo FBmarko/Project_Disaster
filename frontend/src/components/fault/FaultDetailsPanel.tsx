@@ -7,7 +7,7 @@ export function FaultDetailsPanel({ fault }: { fault: FaultFeature | null }) {
   return (
     <section className="rounded-2xl border border-border-subtle/70 bg-card p-4 shadow-sm sm:p-6" aria-labelledby="fault-details-heading">
       <div className="flex items-center gap-3">
-        <span className="rounded-full border border-border-subtle p-2"><Activity size={22} className="text-brand-red" aria-hidden="true" /></span>
+        <span className="rounded-full border border-border-subtle p-2"><Activity size={22} className="text-brand-red-foreground" aria-hidden="true" /></span>
         <h2 id="fault-details-heading" className="text-lg font-semibold sm:text-xl">Seçili Fay Hattı Bilgileri</h2>
       </div>
       <div role="status" aria-live="polite" className="mt-3">

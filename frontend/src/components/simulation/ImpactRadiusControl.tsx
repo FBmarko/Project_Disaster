@@ -16,7 +16,7 @@ export function ImpactRadiusControl({ value, error, onChange }: {
         </label>)}
       </div>
       <p id="simulation-radius-help" className="mt-2 text-xs leading-5 text-text-secondary">İncelenmesi istenen yarıçap; hesaplanmış hasar alanı değildir.</p>
-      {error ? <p id="simulation-radius-error" className="mt-2 text-xs text-red-700">{error}</p> : null}
+      {error ? <p id="simulation-radius-error" className="mt-2 text-xs text-error">{error}</p> : null}
     </fieldset>
   )
 }

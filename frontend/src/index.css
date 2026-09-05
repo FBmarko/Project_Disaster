@@ -5,7 +5,12 @@
    etc. are available as utilities. */
 @theme {
   --color-brand-red: #ef2b2d;
+  --color-brand-red-foreground: #c81e1e;
   --color-brand-red-soft: rgba(239, 43, 45, 0.08);
+  --color-brand-red-hover: #dc2626;
+  --color-error: #b91c1c;
+  --color-location: #1d4ed8;
+  --color-logo-surface: transparent;
 
   --color-surface: #f8fafc;
   --color-card: #ffffff;
@@ -14,6 +19,12 @@
   --color-text-secondary: #6b7280;
 
   --color-border-subtle: #e5e7eb;
+  --color-map-land: #ffffff;
+  --color-map-border: #1f2937;
+  --color-map-border-muted: #9ca3af;
+  --color-map-selection: #b91c1c;
+  --color-map-selection-casing: #ffffff;
+  --color-fault-line: #ef2b2d;
 
   --color-risk-low: #22c55e;
   --color-risk-medium: #f59e0b;
@@ -23,6 +34,29 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+    background-color: var(--color-surface);
+  }
+
+  html.dark {
+    color-scheme: dark;
+    --color-brand-red-soft: rgba(239, 43, 45, 0.18);
+    --color-brand-red-foreground: #ff8587;
+    --color-brand-red-hover: #f04446;
+    --color-error: #fca5a5;
+    --color-location: #60a5fa;
+    --color-logo-surface: #f8fafc;
+    --color-surface: #0f172a;
+    --color-card: #1e293b;
+    --color-text-primary: #f8fafc;
+    --color-text-secondary: #a8b4c7;
+    --color-border-subtle: #405069;
+    --color-map-land: #1e293b;
+    --color-map-border: #94a3b8;
+    --color-map-border-muted: #52647d;
+    --color-map-selection: #fca5a5;
+    --color-map-selection-casing: #0f172a;
+    --color-fault-line: rgba(239, 43, 45, 0.76);
   }
 
   body {
@@ -34,6 +68,17 @@
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-text-secondary);
+    opacity: 0.8;
+  }
+
+  select option {
+    background-color: var(--color-card);
+    color: var(--color-text-primary);
   }
 
   /* Keep a visible focus ring for keyboard users. */

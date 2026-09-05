@@ -16,7 +16,7 @@ export function DepthControl({ value, error, onChange }: {
         </label>)}
       </div>
       <p id="simulation-depth-help" className="mt-2 text-xs leading-5 text-text-secondary">Deprem odağının yüzeyden derinliği.</p>
-      {error ? <p id="simulation-depth-error" className="mt-2 text-xs text-red-700">{error}</p> : null}
+      {error ? <p id="simulation-depth-error" className="mt-2 text-xs text-error">{error}</p> : null}
     </fieldset>
   )
 }

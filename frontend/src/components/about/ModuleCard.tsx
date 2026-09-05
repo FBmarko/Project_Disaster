@@ -11,7 +11,7 @@ export function ModuleCard({ icon: Icon, title, description, className = '' }: M
   return (
     <article className={`min-w-0 rounded-xl border border-border-subtle bg-surface/60 p-4 sm:p-5 ${className}`}>
       <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-card text-brand-red shadow-sm"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-card text-brand-red-foreground shadow-sm"
         aria-hidden="true"
       >
         <Icon size={19} />

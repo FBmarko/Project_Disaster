@@ -10,7 +10,7 @@ export function FaultEarthquakeTable({ faultId }: { faultId: string }) {
   return (
     <section aria-labelledby="fault-earthquakes-heading" className="min-w-0 p-4 sm:p-6" aria-busy={result.status === 'loading'}>
       <h3 id="fault-earthquakes-heading" className="flex items-center gap-3 font-semibold">
-        <History size={20} className="shrink-0 text-brand-red" aria-hidden="true" />Yakındaki Depremler
+        <History size={20} className="shrink-0 text-brand-red-foreground" aria-hidden="true" />Yakındaki Depremler
       </h3>
       <p className="mt-3 text-xs leading-5 text-text-secondary">Fay çizgisine en fazla {FAULT_DISTANCE_KM} km uzaklıktaki, büyüklüğü en az 5 olan kayıtlar; en yeni kayıt önce gösterilir. Yakınlık, depremin bu fay üzerinde gerçekleştiğini kanıtlamaz. AFAD kayıtları anlık olmayabilir.</p>
       {result.status === 'loading' ? <p role="status" className="mt-4 text-sm">Deprem kayıtları alınıyor…</p> : null}
@@ -26,7 +26,7 @@ export function FaultEarthquakeTable({ faultId }: { faultId: string }) {
             <tbody>{result.data.earthquakes.map(event => <tr key={event.id} className="border-b border-border-subtle last:border-0">
               <td className="py-3 pr-3"><time dateTime={event.date}>{new Date(event.date).toLocaleString('tr-TR', { timeZone: 'UTC' })}</time></td>
               <td className="py-3 pr-3">{event.location ?? 'Konum adı belirtilmemiş'}</td>
-              <td className="py-3 pr-3 font-semibold text-brand-red">{event.magnitude} {event.magnitudeType}</td>
+              <td className="py-3 pr-3 font-semibold text-brand-red-foreground">{event.magnitude} {event.magnitudeType}</td>
               <td className="py-3 pr-3">{event.depthKm} km</td>
               <td className="py-3">{event.distanceKm} km</td>
             </tr>)}</tbody>

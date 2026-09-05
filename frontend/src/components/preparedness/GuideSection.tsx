@@ -12,7 +12,7 @@ export function GuideSection({ id, title, icon: Icon, items }: {
         <Icon size={20} aria-hidden="true" className="shrink-0 text-text-secondary" />{title}
       </h3>
       {items?.length ? (
-        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 wrap-anywhere text-text-primary marker:text-brand-red">
+        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 wrap-anywhere text-text-primary marker:text-brand-red-foreground">
           {items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}
         </ul>
       ) : <p className="mt-2 text-sm leading-6 text-text-secondary">
