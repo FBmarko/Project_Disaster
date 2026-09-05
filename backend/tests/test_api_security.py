@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
-from app.core.rate_limit import RATE_LIMIT_DETAIL, rate_limiter
+from app.core.rate_limit import rate_limiter
 from app.integrations.ai.dependencies import get_ai_provider
 from app.main import app
 from app.schemas.ai import PreparednessGuideContent
@@ -333,7 +333,6 @@ def test_rate_limit_429_exact_contract_stability(
         assert res_gen_blocked.json() == {
             "detail": "Too many requests. Please try again later."
         }
-        assert res_gen_blocked.json()["detail"] == RATE_LIMIT_DETAIL
         assert "retry-after" in res_gen_blocked.headers
         assert int(res_gen_blocked.headers["retry-after"]) >= 1
 
@@ -358,7 +357,6 @@ def test_rate_limit_429_exact_contract_stability(
         assert res_ai_blocked.json() == {
             "detail": "Too many requests. Please try again later."
         }
-        assert res_ai_blocked.json()["detail"] == RATE_LIMIT_DETAIL
         assert "retry-after" in res_ai_blocked.headers
         assert int(res_ai_blocked.headers["retry-after"]) >= 1
 
