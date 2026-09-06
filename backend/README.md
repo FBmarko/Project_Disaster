@@ -690,7 +690,7 @@ python -m app.scripts.import_osm_assembly_areas --snapshot "$env:LOCALAPPDATA\AF
 
 ## Current Phase
 
-This repository currently represents **Phase 13: Comprehensive Backend Test Coverage + Final Public Contract Audit**.
+This repository currently represents **Phase 14: Production Dockerization + Container Runtime Verification**.
 
 At this stage:
 - PostGIS database migrations (`0001` - `0005`) are fully applied and operational.
@@ -703,4 +703,58 @@ At this stage:
 - API Security Foundation, sliding-window rate limiting, and request body size limiting (TASK 12) are fully active.
 - GEM GSHM hazard dataset and 54,291 Türkiye-context hazard points are persisted and active.
 - OpenStreetMap assembly area dataset provenance and 678 assembly features (650 Points, 28 Polygons) are persisted and verified.
+- Minimal, production-oriented Docker runtime (`Dockerfile`, `.dockerignore`, `docker-entrypoint.sh`, and `docker-compose.prod.yml`) is implemented and verified.
 - User authentication and persistent user accounts are intentionally omitted by architectural design.
+
+---
+
+## Production Docker Runtime & Operations (TASK 14)
+
+### 1. Production Image Build
+The backend uses a minimal, multi-stage cached build on `python:3.12-slim-bookworm` with a dedicated non-root application user (`appuser`, UID 10001):
+
+```bash
+# Build production image from project root:
+docker build -t afet360-backend:production ./backend
+```
+
+### 2. Production Compose Stack
+A self-contained production compose definition is available at `docker-compose.prod.yml`. It runs the FastAPI backend and PostGIS database on an isolated internal network with dedicated volume persistence (`afet360_prod_postgres_data`):
+
+```bash
+# Start production-oriented compose stack:
+docker compose -f docker-compose.prod.yml up -d
+
+# View application logs:
+docker compose -f docker-compose.prod.yml logs -f api
+```
+
+> [!NOTE]
+> In `docker-compose.prod.yml`, the PostgreSQL database port `5432` is intentionally **not** exposed to the host. The database is accessible only to the `api` container over the internal Docker network, preventing host port collisions with development environments and avoiding public exposure.
+
+### 3. Single-Worker Architecture Constraint (Rate Limiter)
+The production Uvicorn command intentionally runs with **exactly 1 worker**:
+
+```text
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+```
+
+**Rationale**: AFET360's security layer currently utilizes an in-memory, process-local sliding-window rate limiter (`120 req/min` general, `5 req/min` AI). Running multiple Uvicorn workers would maintain independent in-memory state in each process, multiplying the effective public quota. A distributed rate-limiting backend (such as Redis) is out of scope for the current architecture and will be addressed when horizontal multi-instance scaling is required.
+
+### 4. Database Readiness & Migration Startup Sequence
+Container startup is managed deterministically by `docker-entrypoint.sh`:
+1. **Connectivity Check**: Verifies PostgreSQL connection via SQLAlchemy with a monotonic ~30-second readiness deadline (`time.monotonic()`), failing closed immediately without printing credentials if the database remains unreachable.
+2. **Schema Migration**: Executes `alembic upgrade head` (head: `0005_create_assembly_tables`). Migration failures halt container startup immediately (`set -e`).
+3. **Server Execution**: Replaces the entrypoint shell process with the Uvicorn application server using `exec "$@"`, ensuring proper OS signal forwarding (SIGTERM, SIGINT) for graceful shutdown.
+
+### 5. Schema Migration vs. Dataset Ingestion Boundary
+- **Alembic (Schema)**: Creates and verifies database tables, indexes, and constraints automatically on container startup. It does **not** populate geospatial source datasets.
+- **Dataset Population (Data)**: Ingestion of GEM GAF active fault segments intersecting the Natural Earth boundary (722 features), AFAD historical earthquake events (84 features), GEM GSHM hazard points (54,291 points), and OSM community assembly areas (678 features) is a separate deployment-time operational prerequisite handled during production provisioning (TASK 16). Large dataset ingestion is **never** executed automatically on container boot.
+
+### 6. Runtime Configuration & Secrets
+No credentials or keys are baked into the image. All sensitive configuration is supplied at runtime via environment variables or container orchestrator secrets:
+- `POSTGRES_PASSWORD`: Strictly required in `docker-compose.prod.yml` (`${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}`) with no insecure default fallback.
+- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER` (or `DATABASE_URL`): Configurable with sensible defaults.
+- `GEMINI_API_KEY`: Optional at runtime. Without a key, the AI preparedness guide responds with a clean HTTP 503 while all 14 other endpoints function normally.
+- `CORS_ALLOWED_ORIGINS`: Comma-separated list of allowed frontend origins (configured at deployment time; no wildcard `*`).
+- **Google Maps**: Frontend/browser concern; entirely excluded from backend containerization.

@@ -1,0 +1,41 @@
+# Version control
+.git
+.gitignore
+
+# Environment & Secrets (CRITICAL)
+.env
+.env.*
+!.env.example
+
+# Python virtual environment & caches
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*.class
+*.so
+
+# Testing & Linting artifacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+
+# IDE & Editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Antigravity & local scratch files
+scratch/
+brain/
+
+# Local databases & dumps
+*.sqlite3
+*.db
+*.dump
+*.sql

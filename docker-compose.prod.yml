@@ -1,0 +1,56 @@
+# ==============================================================================
+# AFET360 — Production-Oriented Docker Compose Stack
+# Self-contained runtime for FastAPI backend and PostGIS database.
+# Note: Database port 5432 is intentionally NOT exposed to the host to protect
+# against external exposure and prevent conflicts with the development DB.
+# ==============================================================================
+name: afet360-prod
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: afet360-backend:production
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-afet360}
+      POSTGRES_USER: ${POSTGRES_USER:-afet360}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      # Runtime secrets / configuration supplied at deployment (TASK 16):
+      # GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - prod_network
+
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-afet360}
+      POSTGRES_USER: ${POSTGRES_USER:-afet360}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - prod_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-afet360} -d ${POSTGRES_DB:-afet360}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - prod_network
+
+volumes:
+  prod_postgres_data:
+
+networks:
+  prod_network:
