@@ -1,5 +1,6 @@
 import type { FaultFeature, FaultGeometry, GemFaultProperties } from '../types/fault.ts'
 import type { Position, ProvinceShape } from './provinceFeatures.ts'
+import { formatFaultDisplayName } from '../utils/fault.ts'
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -56,7 +57,10 @@ export function parseFaultFeatures(value: unknown): FaultFeature[] {
         sourceId,
         sourceCatalog: text(properties.catalog_name),
         sourceName,
-        displayName: sourceName ?? 'Adsız Fay Segmenti',
+        displayName: formatFaultDisplayName({
+          name: sourceName,
+          catalogId: sourceId,
+        }),
       },
     }
   })

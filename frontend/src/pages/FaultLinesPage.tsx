@@ -33,7 +33,12 @@ export function FaultLinesPage() {
             <select id="fault-select" value={selected?.id ?? ''} onChange={event => setSelectedId(event.target.value || null)}
               disabled={!features.length} className="min-h-11 w-full min-w-0 rounded-lg border border-border-subtle bg-card px-3 text-sm text-text-primary">
               <option value="">Haritadan veya listeden seçin</option>
-              {features.map(feature => <option key={feature.id} value={feature.id}>{feature.properties.displayName} · {feature.properties.sourceId}</option>)}
+              {features.map(feature => {
+                const label = feature.properties.displayName.includes(feature.properties.sourceId)
+                  ? feature.properties.displayName
+                  : `${feature.properties.displayName} · ${feature.properties.sourceId}`
+                return <option key={feature.id} value={feature.id}>{label}</option>
+              })}
             </select>
           </div>
         </div>

@@ -20,6 +20,7 @@ from app.schemas.earthquake_api import (
     DEFAULT_FAULT_SOURCE,
     SCIENTIFIC_PROXIMITY_DISCLAIMER,
 )
+from app.services.earthquake_query import EarthquakeQueryService
 
 client = TestClient(app)
 pytestmark = pytest.mark.integration
@@ -529,8 +530,134 @@ def test_upper_boundary_500km_safety_case() -> None:
 def test_api_read_operations_leave_database_clean() -> None:
     """Verify that read operations and tests do not pollute or modify DB rows."""
     with engine.connect() as conn:
-        f_count = conn.execute(text("SELECT count(*) FROM fault_segments")).scalar()
-        q_count = conn.execute(text("SELECT count(*) FROM earthquake_events")).scalar()
+        f_count_before = conn.execute(
+            text("SELECT count(*) FROM fault_segments")
+        ).scalar()
+        q_count_before = conn.execute(
+            text("SELECT count(*) FROM earthquake_events")
+        ).scalar()
 
-    assert f_count == 722
-    assert q_count == 84
+    # Exercise representative read queries
+    client.get("/api/v1/earthquakes?limit=5")
+    client.get(f"/api/v1/fault-lines/{SAMPLE_FAULT_ID}/earthquakes?max_distance_km=25")
+
+    with engine.connect() as conn:
+        f_count_after = conn.execute(
+            text("SELECT count(*) FROM fault_segments")
+        ).scalar()
+        q_count_after = conn.execute(
+            text("SELECT count(*) FROM earthquake_events")
+        ).scalar()
+
+    assert f_count_before == 722
+    assert f_count_after == 722
+    assert q_count_before is not None and q_count_before >= 0
+    assert q_count_after == q_count_before
+
+
+def test_rolling_window_read_time_enforcement() -> None:
+    """Verify rolling 10-calendar-year coverage window enforced at query time."""
+    fault_uuid = uuid.UUID(SAMPLE_FAULT_ID)
+    zero_fault_uuid = uuid.UUID("0f2943fd-5947-450b-88e5-ca7e68036d9b")
+
+    with Session(engine) as session:
+        # A: Standard query with 2026 reference includes valid events within 10 years
+        svc_2026 = EarthquakeQueryService(
+            session, reference_time=datetime(2026, 9, 6, 0, 0, 0, tzinfo=UTC)
+        )
+        res_2026 = svc_2026.list_earthquakes_near_fault(
+            fault_uuid, max_distance_km=25.0, min_magnitude=4.5, limit=200
+        )
+        assert res_2026 is not None
+        assert len(res_2026.features) > 0
+        all_dates = [f.properties.occurred_at for f in res_2026.features]
+        assert all(dt >= datetime(2016, 9, 6, 0, 0, 0, tzinfo=UTC) for dt in all_dates)
+
+        # B & C: Exact cutoff boundary test
+        earliest_dt = min(all_dates)
+        # Setting reference_time exactly 10 calendar years after earliest
+        # event includes it
+        cutoff_ref = earliest_dt.replace(year=earliest_dt.year + 10)
+        svc_exact = EarthquakeQueryService(session, reference_time=cutoff_ref)
+        res_exact = svc_exact.list_earthquakes_near_fault(
+            fault_uuid, max_distance_km=25.0, min_magnitude=4.5, limit=200
+        )
+        assert res_exact is not None
+        exact_dates = [f.properties.occurred_at for f in res_exact.features]
+        assert earliest_dt in exact_dates
+
+        # Setting reference_time 1 second later excludes that earliest event
+        excluded_ref = cutoff_ref + timedelta(seconds=1)
+        svc_excluded = EarthquakeQueryService(session, reference_time=excluded_ref)
+        res_excluded = svc_excluded.list_earthquakes_near_fault(
+            fault_uuid, max_distance_km=25.0, min_magnitude=4.5, limit=200
+        )
+        assert res_excluded is not None
+        excluded_dates = [f.properties.occurred_at for f in res_excluded.features]
+        assert earliest_dt not in excluded_dates
+        assert len(res_excluded.features) == len(res_exact.features) - 1
+
+        # D: Future reference time beyond all stored data returns valid empty collection
+        svc_future = EarthquakeQueryService(
+            session, reference_time=datetime(2045, 1, 1, 0, 0, 0, tzinfo=UTC)
+        )
+        res_future = svc_future.list_earthquakes_near_fault(
+            fault_uuid, max_distance_km=25.0, min_magnitude=4.5, limit=200
+        )
+        assert res_future is not None
+        assert len(res_future.features) == 0
+        assert res_future.metadata.count == 0
+
+        # E: Distance filtering preserved
+        res_narrow = svc_2026.list_earthquakes_near_fault(
+            fault_uuid, max_distance_km=10.0, min_magnitude=4.5, limit=200
+        )
+        assert res_narrow is not None
+        assert len(res_narrow.features) <= len(res_2026.features)
+        assert all(
+            f.properties.distance_to_fault_km is not None
+            and f.properties.distance_to_fault_km <= 10.0
+            for f in res_narrow.features
+        )
+
+        # F: Magnitude filtering preserved
+        res_mag6 = svc_2026.list_earthquakes_near_fault(
+            fault_uuid, max_distance_km=25.0, min_magnitude=6.0, limit=200
+        )
+        assert res_mag6 is not None
+        assert len(res_mag6.features) <= len(res_2026.features)
+        assert all(f.properties.magnitude >= 6.0 for f in res_mag6.features)
+
+        # G: Caller tighter start_time is respected
+        tighter_start = datetime(2023, 1, 1, 0, 0, 0, tzinfo=UTC)
+        res_tighter = svc_2026.list_earthquakes_near_fault(
+            fault_uuid,
+            max_distance_km=25.0,
+            min_magnitude=4.5,
+            start_time=tighter_start,
+            limit=200,
+        )
+        assert res_tighter is not None
+        assert all(
+            f.properties.occurred_at >= tighter_start for f in res_tighter.features
+        )
+
+        # H: Caller older start_time does NOT leak older data beyond coverage window
+        ancient_start = datetime(1990, 1, 1, 0, 0, 0, tzinfo=UTC)
+        res_ancient = svc_2026.list_earthquakes_near_fault(
+            fault_uuid,
+            max_distance_km=25.0,
+            min_magnitude=4.5,
+            start_time=ancient_start,
+            limit=200,
+        )
+        assert res_ancient is not None
+        assert len(res_ancient.features) == len(res_2026.features)
+
+        # I: Zero-result fault segment returns valid empty GeoJSON collection
+        res_zero = svc_2026.list_earthquakes_near_fault(
+            zero_fault_uuid, max_distance_km=25.0, min_magnitude=4.5
+        )
+        assert res_zero is not None
+        assert len(res_zero.features) == 0
+        assert res_zero.metadata.count == 0

@@ -28,8 +28,9 @@ These are integration dependencies rather than frontend defects:
    The Home map therefore retains clearly labelled development UI data and does
    not derive categories from PGA.
 2. **Fault names:** some source/backend records lack usable human-readable names.
-   The UI preserves supplied names and otherwise uses the neutral “Adsız Fay
-   Segmenti” fallback; a richer label requires authoritative source metadata.
+   The UI preserves supplied names (`name`, `segment_name`) and otherwise uses
+   the truthful “Fay Segmenti · <catalog_id>” (or “Fay Segmenti”) fallback based
+   on authoritative GEM catalog IDs.
 3. **Earthquake availability:** the proximity endpoint is integrated, but the
    local database may be empty until bounded AFAD ingestion is available and
    populated. The UI treats this as an honest empty result.

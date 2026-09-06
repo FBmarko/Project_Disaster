@@ -11,7 +11,7 @@ export function FaultDetailsPanel({ fault }: { fault: FaultFeature | null }) {
         <h2 id="fault-details-heading" className="text-lg font-semibold sm:text-xl">Seçili Fay Hattı Bilgileri</h2>
       </div>
       <div role="status" aria-live="polite" className="mt-3">
-        {fault ? <p className="break-words font-semibold">{fault.properties.displayName} <span className="font-normal text-text-secondary">· {fault.properties.sourceId}</span></p>
+        {fault ? <p className="break-words font-semibold">{fault.properties.displayName}{!fault.properties.displayName.includes(fault.properties.sourceId) ? <span className="font-normal text-text-secondary"> · {fault.properties.sourceId}</span> : null}</p>
           : <p className="flex items-start gap-3 rounded-xl bg-surface p-5 text-sm leading-6 text-text-secondary"><MousePointer2 size={20} className="mt-0.5 shrink-0" aria-hidden="true" />Detayları görüntülemek için harita üzerinden bir fay hattı seçin.</p>}
       </div>
       {fault ? <>

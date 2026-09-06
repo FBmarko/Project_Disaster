@@ -53,7 +53,7 @@ export function FaultLinesMap({ features, selectedId, onSelect }: {
           {paths.map((path) => <path key={path.feature.id} d={path.d}
             vectorEffect="non-scaling-stroke" className="cursor-pointer"
             role="button" tabIndex={0} aria-pressed={selectedId === path.feature.id}
-            aria-label={`${path.feature.properties.displayName} · ${path.feature.id}`}
+            aria-label={path.feature.properties.displayName.includes(path.feature.id) ? path.feature.properties.displayName : `${path.feature.properties.displayName} · ${path.feature.id}`}
             aria-describedby={active?.path.feature.id === path.feature.id ? tooltipId : undefined}
             {...pointerHandlers(path)} onFocus={() => activate(path)} onBlur={() => setActive(null)}
             onKeyDown={(event) => {

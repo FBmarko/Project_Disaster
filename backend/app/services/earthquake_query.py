@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.integrations.afad.mapping import get_project_coverage_start
 from app.repositories.earthquake_event import EarthquakeEventRepository
 from app.repositories.fault_segment import FaultSegmentRepository
 from app.schemas.earthquake_api import (
@@ -103,10 +104,15 @@ def _row_to_feature(
 class EarthquakeQueryService:
     """Service coordinating public earthquake queries and GeoJSON formatting."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        reference_time: datetime | None = None,
+    ) -> None:
         self.session = session
         self.repo = EarthquakeEventRepository(session)
         self.fault_repo = FaultSegmentRepository(session)
+        self.reference_time = reference_time
 
     def get_earthquake_by_id(self, event_id: uuid.UUID) -> EarthquakeFeature | None:
         """Retrieve a single earthquake event by its unique AFET360 UUID."""
@@ -162,7 +168,8 @@ class EarthquakeQueryService:
         offset: int = 0,
     ) -> EarthquakeFeatureCollection:
         """Query recent major earthquakes, optionally filtered near faults."""
-        since = datetime.now(UTC) - timedelta(days=days)
+        ref = self.reference_time or datetime.now(UTC)
+        since = ref - timedelta(days=days)
         rows = self.repo.list_recent_major(
             since=since,
             min_magnitude=min_magnitude,
@@ -206,17 +213,27 @@ class EarthquakeQueryService:
         limit: int = 100,
         offset: int = 0,
         order_by: str = "recent",
+        reference_time: datetime | None = None,
     ) -> EarthquakeFeatureCollection | None:
         """Query earthquakes within max_distance_km of a specific mapped fault trace."""
         fault = self.fault_repo.get_by_id(fault_id)
         if not fault:
             return None
 
+        # Enforce AFET360 project coverage window (rolling 10 calendar years)
+        ref = reference_time or self.reference_time
+        coverage_start = get_project_coverage_start(ref)
+        effective_start = (
+            max(start_time, coverage_start)
+            if start_time is not None
+            else coverage_start
+        )
+
         rows = self.repo.list_near_fault(
             fault_id=fault_id,
             max_distance_km=max_distance_km,
             min_magnitude=min_magnitude,
-            start_time=start_time,
+            start_time=effective_start,
             end_time=end_time,
             limit=limit,
             offset=offset,

@@ -123,8 +123,8 @@ Other catalogs, including overlapping SHARE records and Bird plate boundaries,
 are excluded by the explicit EMME/catalog-ID selection.
 
 The source features use unique `catalog_id` values (e.g. `ME_TRCS001`), which
-become stable application IDs without renumbering. None of these 321 records
-has a source `name`; they display “Adsız Fay Segmenti” plus the original ID.
+become stable application IDs without renumbering. When a source `name` or
+`segment_name` is absent, they display “Fay Segmenti · <catalog_id>”.
 The adapter supports safe source names when present, and both LineString and
 MultiLineString geometry. It never infers a named regional fault system.
 Raw geological attributes are retained for provenance but are not turned into

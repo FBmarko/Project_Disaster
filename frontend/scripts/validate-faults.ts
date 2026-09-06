@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { faultLines, isTurkeyFault, parseFaultFeatures, provinceBounds } from '../src/data/faultFeatures.ts'
+import { formatFaultDisplayName } from '../src/utils/fault.ts'
 import { assertFeatureCollection, groupFeaturesByProvince } from '../src/data/provinceFeatures.ts'
 import { projectProvinceShapes } from '../src/components/map/projectTurkeyMap.ts'
 import { projectFaultLines } from '../src/components/map/projectFaultLines.ts'
@@ -70,8 +71,20 @@ assert.throws(() => parseFaultFeatures({ type: 'FeatureCollection', features: []
 assert.throws(() => parseFaultFeatures({ type: 'FeatureCollection', features: [first, first] }))
 assert.throws(() => parseFaultFeatures({ type: 'FeatureCollection', features: [{ ...first, properties: {} }] }))
 const unnamed = parseFaultFeatures({ type: 'FeatureCollection', features: [{ ...first, properties: { ...first.properties, name: { unexpected: true } } }] })[0]
-assert.equal(unnamed.properties.displayName, 'Adsız Fay Segmenti')
+assert.equal(unnamed.properties.displayName, `Fay Segmenti · ${first.properties.catalog_id}`)
 assert.equal(unnamed.properties.sourceName, null)
+
+// Verify centralized fault display name fallback hierarchy:
+// 1. Non-empty name -> name
+// 2. Else non-empty segment_name -> segment_name
+// 3. Else non-empty catalog_id -> Fay Segmenti · <catalog_id>
+// 4. Else -> Fay Segmenti
+assert.equal(formatFaultDisplayName({ name: 'Kuzey Anadolu Fayı', segmentName: 'Ganos', catalogId: 'TEST_01' }), 'Kuzey Anadolu Fayı')
+assert.equal(formatFaultDisplayName({ name: '  ', segmentName: 'Ganos Segmenti', catalogId: 'TEST_01' }), 'Ganos Segmenti')
+assert.equal(formatFaultDisplayName({ name: null, segmentName: null, catalogId: 'EUR_TRCS372' }), 'Fay Segmenti · EUR_TRCS372')
+assert.equal(formatFaultDisplayName({ name: null, segmentName: '  ', catalogId: 'ME_TRCS039' }), 'Fay Segmenti · ME_TRCS039')
+assert.equal(formatFaultDisplayName({ name: null, segmentName: null, catalogId: null }), 'Fay Segmenti')
+assert.equal(formatFaultDisplayName({}), 'Fay Segmenti')
 
 // Optional provenance audit against the original pinned download (no network).
 if (process.argv[2]) {

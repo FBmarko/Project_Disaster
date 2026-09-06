@@ -1,12 +1,19 @@
 import argparse
 import logging
 import sys
+from datetime import UTC, datetime
 
 from app.db.session import SessionLocal
 from app.integrations.afad.mapping import (
     AFAD_ATTRIBUTION_NOTICE,
     AFAD_ATTRIBUTION_SOURCE,
+    DEFAULT_COVERAGE_YEARS,
+    DEFAULT_MAX_HTTP_REQUESTS,
+    DEFAULT_MIN_MAGNITUDE,
+    DEFAULT_PAGE_SIZE,
+    DEFAULT_WINDOW_DAYS,
     TURKEY_CONTEXT_BBOX,
+    get_project_coverage_start,
 )
 from app.services.earthquake_sync import EarthquakeSyncService
 
@@ -24,19 +31,21 @@ def main() -> None:
     )
     parser.add_argument(
         "--start",
-        required=True,
-        help="Start date/time (e.g. '2023-01-01' or '2023-01-01 00:00:00')",
+        required=False,
+        default=None,
+        help="Start date/time (default: rolling previous 10 years UTC)",
     )
     parser.add_argument(
         "--end",
-        required=True,
-        help="End date/time (e.g. '2024-01-01' or '2024-01-01 00:00:00')",
+        required=False,
+        default=None,
+        help="End date/time (default: current UTC timestamp)",
     )
     parser.add_argument(
         "--min-magnitude",
         type=float,
-        default=5.0,
-        help="Minimum seismic magnitude threshold [default: 5.0]",
+        default=DEFAULT_MIN_MAGNITUDE,
+        help=f"Minimum seismic magnitude threshold [default: {DEFAULT_MIN_MAGNITUDE}]",
     )
     parser.add_argument(
         "--scope",
@@ -49,19 +58,46 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--window-days",
+        type=int,
+        default=DEFAULT_WINDOW_DAYS,
+        help=f"Sequential date chunk size in days [default: {DEFAULT_WINDOW_DAYS}]",
+    )
+    parser.add_argument(
         "--page-size",
         type=int,
-        default=100,
-        help="Number of events per AFAD API request page [default: 100]",
+        default=DEFAULT_PAGE_SIZE,
+        help=(
+            f"Number of events per AFAD API request page [default: {DEFAULT_PAGE_SIZE}]"
+        ),
+    )
+    parser.add_argument(
+        "--max-requests",
+        type=int,
+        default=DEFAULT_MAX_HTTP_REQUESTS,
+        help=f"Maximum HTTP requests allowed [default: {DEFAULT_MAX_HTTP_REQUESTS}]",
     )
     parser.add_argument(
         "--max-events",
         type=int,
-        default=2000,
-        help="Maximum total events to synchronize in this run [default: 2000]",
+        default=5000,
+        help="Maximum total events to synchronize in this run [default: 5000]",
     )
 
     args = parser.parse_args()
+
+    # Determine coverage window
+    now_utc = datetime.now(UTC)
+    if args.end:
+        end_str = args.end
+    else:
+        end_str = now_utc.strftime("%Y-%m-%d %H:%M:%S")
+
+    if args.start:
+        start_str = args.start
+    else:
+        start_dt = get_project_coverage_start(now_utc, years=DEFAULT_COVERAGE_YEARS)
+        start_str = start_dt.strftime("%Y-%m-%d %H:%M:%S")
 
     bbox = TURKEY_CONTEXT_BBOX if args.scope == "turkey-context" else None
 
@@ -71,12 +107,14 @@ def main() -> None:
 
         try:
             stats = sync_service.sync_from_afad(
-                start=args.start,
-                end=args.end,
+                start=start_str,
+                end=end_str,
                 min_magnitude=args.min_magnitude,
                 bbox=bbox,
+                window_days=args.window_days,
                 page_size=args.page_size,
                 max_events=args.max_events,
+                max_requests=args.max_requests,
             )
             session.commit()
         except Exception as exc:
@@ -87,8 +125,10 @@ def main() -> None:
     print("\n" + "=" * 45)
     print("      AFAD EARTHQUAKE SYNC SUMMARY")
     print("=" * 45)
-    print(f"Time Window           : {args.start} -> {args.end}")
+    print(f"Time Window           : {start_str} -> {end_str}")
     print(f"Min Magnitude         : {args.min_magnitude}")
+    print(f"Chunk Window Days     : {args.window_days}")
+    print(f"Max Requests Budget   : {args.max_requests}")
     print(f"Geographic Scope      : {args.scope}")
     print(f"Total Events Received : {stats.total_received}")
     print(f"Inserted (New)        : {stats.inserted}")

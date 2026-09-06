@@ -19,8 +19,8 @@ license, citation, filter recipe and preserved-coordinate provenance.
   real source ID, metadata, city-availability section and nearby-earthquake table.
 - City relationships are not supplied and are never inferred. Nearby earthquake
   records come from the backend proximity endpoint; empty and error states remain distinct.
-- Source geometry has no fault names for these records. “Adsız Fay Segmenti”
-  plus original catalog ID is a neutral fallback, not a fabricated fault name.
+- Source geometry has no fault names for these records. “Fay Segmenti · <catalog_id>”
+  (or “Fay Segmenti”) is a truthful fallback, not a fabricated fault name.
 - The archived 321-segment local dataset remains only for provenance, import and
   validation. It is not imported by the application and is never an API fallback.
 

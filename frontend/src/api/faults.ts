@@ -1,6 +1,7 @@
 import { getJson } from './client.ts'
 import * as v from './validation.ts'
 import type { FaultFeature, FaultGeometry } from '../types/fault.ts'
+import { formatFaultDisplayName } from '../utils/fault.ts'
 
 /** Consumed fields from FaultFeatureProperties, kept separate from the UI model. */
 export interface BackendFault {
@@ -13,7 +14,11 @@ export function mapFault(dto: BackendFault): FaultFeature {
   return { id: dto.id, geometry: dto.geometry, properties: {
     sourceId: dto.properties.source_feature_id, sourceCatalog: dto.properties.source,
     sourceName: dto.properties.name,
-    displayName: dto.properties.segment_name ?? dto.properties.name ?? 'Adsız Fay Segmenti',
+    displayName: formatFaultDisplayName({
+      name: dto.properties.name,
+      segmentName: dto.properties.segment_name,
+      catalogId: dto.properties.source_feature_id,
+    }),
     faultType: dto.properties.fault_type, activityStatus: dto.properties.activity_status,
   } }
 }

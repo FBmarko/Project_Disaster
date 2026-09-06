@@ -14,6 +14,7 @@ const faults = { type: 'FeatureCollection', features: [fault], metadata: { count
 const mapped = parseFaultCollection(faults)
 assert.equal(mapped.features[0].id, id)
 assert.equal(mapped.features[0].properties.sourceId, 'test-catalog')
+assert.equal(mapped.features[0].properties.displayName, 'Fay Segmenti · test-catalog')
 assert.equal(mapped.features[0].properties.faultType, 'Normal')
 assert.deepEqual(mapped.features[0].geometry, fault.geometry)
 assert.equal(parseFaultCollection({ ...faults, features: [], metadata: { ...faults.metadata, count: 0 } }).features.length, 0)

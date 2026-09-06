@@ -4,6 +4,7 @@ import type { FaultEarthquake } from '../types/fault.ts'
 
 export const EARTHQUAKE_LIMIT = 100
 export const FAULT_DISTANCE_KM = 25
+export const FAULT_MIN_MAGNITUDE = 4.5
 export function parseFaultEarthquakes(value: unknown, faultId: string) {
   const data = v.collection(value)
   if (v.uuid(data.metadata.fault_id) !== faultId || data.metadata.max_distance_km !== FAULT_DISTANCE_KM) return v.invalid()
@@ -24,6 +25,6 @@ export function parseFaultEarthquakes(value: unknown, faultId: string) {
 }
 export function getFaultEarthquakes(faultId: string, signal: AbortSignal) {
   v.uuid(faultId)
-  return getJson(`/api/v1/fault-lines/${encodeURIComponent(faultId)}/earthquakes?max_distance_km=${FAULT_DISTANCE_KM}&min_magnitude=5&limit=${EARTHQUAKE_LIMIT}&order_by=recent`,
+  return getJson(`/api/v1/fault-lines/${encodeURIComponent(faultId)}/earthquakes?max_distance_km=${FAULT_DISTANCE_KM}&min_magnitude=${FAULT_MIN_MAGNITUDE}&limit=${EARTHQUAKE_LIMIT}&order_by=recent`,
     value => parseFaultEarthquakes(value, faultId), signal)
 }
