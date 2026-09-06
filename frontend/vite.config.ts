@@ -6,11 +6,14 @@ import { defineConfig, loadEnv } from 'vite'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  // Local browser verification without changing backend CORS or exposing server internals.
-  // API_PROXY_TARGET is server-only; production hosting must configure its own reverse proxy/CORS.
-  const proxy = env.API_PROXY_TARGET ? {
-    '/backend': { target: env.API_PROXY_TARGET, changeOrigin: true, rewrite: (path: string) => path.replace(/^\/backend/, '') },
-  } : undefined
+  const apiTarget = env.API_PROXY_TARGET || 'http://127.0.0.1:8000'
+  const proxy = {
+    '/api': {
+      target: apiTarget,
+      changeOrigin: true,
+      secure: false,
+    },
+  }
   return {
     plugins: [react(), tailwindcss()],
     server: { proxy },

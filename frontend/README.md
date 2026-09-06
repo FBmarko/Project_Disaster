@@ -10,13 +10,33 @@ AFET360 kullanıcı arayüzü.
 - React Router
 - lucide-react (ikonlar)
 
-## Kurulum
+## Kurulum ve Yerel Başlatma
 
-```bash
-npm install
-cp .env.example .env.local   # değerleri doldurun
-npm run dev
-```
+Yerel geliştirme ortamında tüm sistemin birlikte çalışması için:
+
+1. **Terminal 1 — PostGIS Veritabanı:**
+   ```bash
+   docker compose up -d
+   ```
+   Geliştirme veritabanı `afet360_db` 5432 portunda çalışır.
+
+2. **Terminal 2 — FastAPI Backend:**
+   ```bash
+   cd backend
+   # .venv ortamını aktif edin (Windows: .venv\Scripts\activate, Linux/macOS: source .venv/bin/activate)
+   uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+   ```
+   Backend `http://127.0.0.1:8000` adresinde dinler. (Ayrıntılı backend kılavuzu için [backend/README.md](../backend/README.md)).
+
+3. **Terminal 3 — Vite Frontend:**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   Frontend `http://localhost:5173` adresinde açılır.
+   Vite geliştirme sunucusu `/api` isteklerini otomatik olarak `http://127.0.0.1:8000` adresine vekiller (proxy). Bu sayede yerel geliştirmede `.env.local` içinde `VITE_API_BASE_URL` tanımlamak zorunlu değildir.
+
 
 ## Komutlar
 

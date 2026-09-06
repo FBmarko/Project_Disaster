@@ -48,13 +48,9 @@ Read `backend/app/api/v1/router.py`, all six endpoint modules, schemas `fault_li
 
 ## Environment and local operation
 
-`VITE_API_BASE_URL` is the project backend root **before** `/api/v1` (or a same-origin proxy prefix). No origin is hard-coded in components. Backend currently has no CORS middleware. For local development/preview, an optional Vite proxy maps `/backend` to server-only `API_PROXY_TARGET`; set `VITE_API_BASE_URL=/backend` and set that target to the actual running local backend origin in ignored `.env.local`. Production needs its own reverse proxy or correctly configured backend CORS; the Vite development server is not production hosting.
+`VITE_API_BASE_URL` is the optional project backend root **before** `/api/v1` (or a same-origin proxy prefix). No origin is hard-coded in components. For local development/preview, the Vite dev server automatically proxies `/api` directly to `http://127.0.0.1:8000` (configurable via server-only `API_PROXY_TARGET`). When `VITE_API_BASE_URL` is empty, the frontend issues relative `/api/v1/...` requests that Vite proxies to the local backend. Production with separate origins uses `VITE_API_BASE_URL=https://api.example.com`; same-origin production hosting can leave it blank.
 
-`.env.example` contains only the required public `VITE_API_BASE_URL` and
-`VITE_GOOGLE_MAPS_API_KEY` names, with blank values. Optional local-only
-`API_PROXY_TARGET` and production `VITE_GOOGLE_MAPS_MAP_ID` settings remain
-documented without placeholder entries. No AI credentials or new frontend
-packages were added. Local ignored environment files remain uncommitted.
+`.env.example` documents `VITE_API_BASE_URL` (optional for local Vite dev) and `VITE_GOOGLE_MAPS_API_KEY`. No AI credentials or server secrets exist in frontend configuration. Local ignored environment files remain uncommitted.
 
 The final frontend completion boundary and seven outstanding backend/product
 dependencies are summarized in [release-readiness.md](release-readiness.md).

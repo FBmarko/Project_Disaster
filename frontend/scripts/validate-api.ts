@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { parseFaultCollection } from '../src/api/faults.ts'
 import { parseFaultEarthquakes } from '../src/api/earthquakes.ts'
 import { parseAssemblyCollection } from '../src/api/assemblyAreas.ts'
+import { ApiError, resolveApiUrl } from '../src/api/client.ts'
 import { assemblyDirectionsUrl } from '../src/utils/assemblyAreas.ts'
 
 // Synthetic contract fixtures only. Never imported into application code or a database.
@@ -60,3 +61,32 @@ assert.throws(() => parseAssemblyCollection({ ...assembly, features: [{ ...point
 assert.throws(() => parseAssemblyCollection({ ...assembly, features: [{ ...polygon, geometry: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [0, 1], [2, 2]]] } }] }))
 assert.equal(parseAssemblyCollection({ ...assembly, features: [], metadata: { ...assembly.metadata, returned_count: 0 } }).areas.length, 0)
 console.log('PASS: Point/Polygon preservation, no invented entrances/addresses, metadata, empty records and malformed geometry rejection')
+
+// Unit tests for API URL resolution and error handling
+// CASE A: VITE_API_BASE_URL absent or blank -> relative path
+assert.equal(resolveApiUrl('/api/v1/health'), '/api/v1/health')
+assert.equal(resolveApiUrl('/api/v1/health', undefined), '/api/v1/health')
+assert.equal(resolveApiUrl('/api/v1/health', ''), '/api/v1/health')
+assert.equal(resolveApiUrl('/api/v1/health', '   '), '/api/v1/health')
+assert.equal(resolveApiUrl('api/v1/health', ''), '/api/v1/health')
+
+// CASE B: base configured without trailing slash
+assert.equal(resolveApiUrl('/api/v1/health', 'https://api.example.com'), 'https://api.example.com/api/v1/health')
+
+// CASE C: base configured with single or multiple trailing slashes
+assert.equal(resolveApiUrl('/api/v1/health', 'https://api.example.com/'), 'https://api.example.com/api/v1/health')
+assert.equal(resolveApiUrl('/api/v1/health', 'https://api.example.com///'), 'https://api.example.com/api/v1/health')
+assert.equal(resolveApiUrl('api/v1/health', 'https://api.example.com/'), 'https://api.example.com/api/v1/health')
+
+// CASE D: ApiError type and status preservation
+const defaultErr = new ApiError()
+assert.equal(defaultErr instanceof Error, true)
+assert.equal(defaultErr.name, 'ApiError')
+assert.equal(defaultErr.status, null)
+assert.equal(defaultErr.message, 'Project API request failed')
+
+const statusErr = new ApiError(404)
+assert.equal(statusErr.status, 404)
+assert.equal(statusErr instanceof ApiError, true)
+
+console.log('PASS: API base URL resolution (absent, configured, trailing-slash) and ApiError semantics')
