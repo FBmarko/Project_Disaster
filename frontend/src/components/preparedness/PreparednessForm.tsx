@@ -1,4 +1,4 @@
-import { ArrowRight, UsersRound } from 'lucide-react'
+import { ArrowRight, Loader2, UsersRound } from 'lucide-react'
 import { DISASTER_TYPES, HOUSEHOLD_CHOICES, HOUSEHOLD_SIZE } from '@/constants/preparedness'
 import { TURKEY_PROVINCES } from '@/constants/provinces'
 import type { PreparednessAction, PreparednessDraft, PreparednessState } from '@/types/preparedness'
@@ -9,9 +9,10 @@ const controlClass = 'min-h-12 w-full min-w-0 rounded-xl border border-border-su
 const labelClass = 'mb-2 block text-sm font-medium'
 const errorClass = 'mt-2 text-sm text-error'
 
-export function PreparednessForm({ state, onAction }: {
+export function PreparednessForm({ state, onAction, isLoading = false }: {
   state: PreparednessState
   onAction: (action: PreparednessAction) => void
+  isLoading?: boolean
 }) {
   const { draft } = state
   const errors = state.submitted ? validatePreparednessDraft(draft) : {}
@@ -29,6 +30,7 @@ export function PreparednessForm({ state, onAction }: {
 
       <form noValidate className="mt-6 space-y-5" onSubmit={(event) => {
         event.preventDefault()
+        if (isLoading) return
         const invalidField = Object.keys(validatePreparednessDraft(draft))[0]
         onAction({ type: 'submit' })
         if (invalidField) event.currentTarget.querySelector<HTMLElement>(`[name="${invalidField}"]`)?.focus()
@@ -38,6 +40,7 @@ export function PreparednessForm({ state, onAction }: {
             <label htmlFor="preparedness-city" className={labelClass}>Şehir</label>
             <select id="preparedness-city" name="city" required value={draft.city}
               onChange={(event) => change('city', event.target.value)} className={controlClass}
+              disabled={isLoading}
               aria-invalid={Boolean(errors.city)} aria-describedby={errors.city ? 'preparedness-city-error' : undefined}>
               <option value="">Şehir seçin</option>
               {TURKEY_PROVINCES.map((city) => <option key={city} value={city}>{city}</option>)}
@@ -48,6 +51,7 @@ export function PreparednessForm({ state, onAction }: {
             <label htmlFor="preparedness-disaster" className={labelClass}>Afet Türü</label>
             <select id="preparedness-disaster" name="disasterType" required value={draft.disasterType}
               onChange={(event) => change('disasterType', event.target.value)} className={controlClass}
+              disabled={isLoading}
               aria-invalid={Boolean(errors.disasterType)} aria-describedby={errors.disasterType ? 'preparedness-disaster-error' : undefined}>
               {DISASTER_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
             </select>
@@ -60,6 +64,7 @@ export function PreparednessForm({ state, onAction }: {
           <input id="preparedness-household" name="householdSize" type="number" inputMode="numeric" required
             min={HOUSEHOLD_SIZE.min} max={HOUSEHOLD_SIZE.max} step={1} value={draft.householdSize ?? ''}
             onChange={(event) => change('householdSize', Number.isNaN(event.target.valueAsNumber) ? null : event.target.valueAsNumber)}
+            disabled={isLoading}
             className={controlClass} aria-invalid={Boolean(errors.householdSize)}
             aria-describedby={`preparedness-household-hint${errors.householdSize ? ' preparedness-household-error' : ''}`} />
           <p id="preparedness-household-hint" className="mt-2 text-xs leading-5 text-text-secondary">Kendiniz dahil, 1–20 kişi arasında belirtin.</p>
@@ -75,18 +80,22 @@ export function PreparednessForm({ state, onAction }: {
 
         {Object.keys(errors).length ? <p role="alert" className={errorClass}>Lütfen işaretli alanları kontrol edin.</p> : null}
         <div>
-          <button type="submit" aria-describedby="preparedness-availability"
-            className="flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-brand-red px-4 py-3 text-[19px] font-bold text-white hover:bg-brand-red-hover">
-            Rehberimi Oluştur <ArrowRight size={18} aria-hidden="true" className="shrink-0" />
+          <button type="submit" disabled={isLoading}
+            className="flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-brand-red px-4 py-3 text-[19px] font-bold text-white hover:bg-brand-red-hover disabled:cursor-not-allowed disabled:opacity-60">
+            {isLoading ? (
+              <>
+                <Loader2 size={20} className="animate-spin shrink-0" aria-hidden="true" />
+                Hazırlık Rehberi Oluşturuluyor...
+              </>
+            ) : (
+              <>
+                Rehberimi Oluştur <ArrowRight size={18} aria-hidden="true" className="shrink-0" />
+              </>
+            )}
           </button>
-          <p id="preparedness-availability" className="mt-3 text-xs leading-5 text-text-secondary">
-            Kişisel rehber oluşturma şu anda kullanılamıyor. Bilgilerinizi bu sayfada hazırlayabilirsiniz.
+          <p id="preparedness-privacy" className="mt-3 text-xs leading-5 text-text-secondary">
+            Hane bilgileriniz yalnızca rehber oluşturulurken kullanılır, sunucuda kalıcı olarak saklanmaz.
           </p>
-          <div role="status" aria-live="polite" aria-atomic="true">
-            {state.preparedProfile ? <p className="mt-3 rounded-xl border border-border-subtle bg-surface p-3 text-sm leading-6">
-              Bilgileriniz hazır. Henüz bir rehber oluşturulmadı. Bilgileriniz yalnızca bu sayfa açıkken korunur.
-            </p> : null}
-          </div>
         </div>
       </form>
     </section>

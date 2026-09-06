@@ -63,6 +63,28 @@ class PreparednessGuideRequest(BaseModel):
         description="Output language for the guide and disclaimer ('tr' or 'en')",
         examples=["tr"],
     )
+    household_size: int = Field(
+        default=1,
+        ge=1,
+        le=20,
+        description="Number of individuals residing in the household (1-20)",
+        examples=[4],
+    )
+    has_children: bool = Field(
+        default=False,
+        description="Whether children reside in the household",
+        examples=[True],
+    )
+    has_elderly_person: bool = Field(
+        default=False,
+        description="Whether elderly individuals reside in the household",
+        examples=[False],
+    )
+    has_pets: bool = Field(
+        default=False,
+        description="Whether domestic pets reside in the household",
+        examples=[True],
+    )
 
     @field_validator("city", mode="before")
     @classmethod
@@ -115,46 +137,22 @@ class PreparednessGuideContent(BaseModel):
     summary: SummaryText = Field(
         ...,
         examples=[
-            "Deprem öncesi, sırası ve sonrasında bilinçli hazırlık hayat kurtarır. "
+            "Deprem hazırlığı bireysel ve hane odaklı adımlarla başlar. "
             "Evinizde tehlike avı yapın ve acil durum çantanızı hazır bulundurun."
         ],
     )
-    before: list[ActionItem] = Field(
+    priorities: list[ActionItem] = Field(
         ...,
         min_length=1,
         max_length=8,
-        description="Preparation steps to take before an event occurs (1-8 items)",
+        description=(
+            "Immediate life-safety actions and essential preparations (1-8 items)"
+        ),
         examples=[
             [
+                "Sarsıntı anında sağlam eşya yanında Çök-Kapan-Tutun uygulayın.",
+                "Pencerelerden ve devrilebilecek eşyalardan uzak durun.",
                 "Ağır mobilyaları ve beyaz eşyaları duvara sabitleyin.",
-                "Aile afet ve acil durum planı hazırlayın.",
-                "Acil durum çantasını kolay erişilebilir bir yerde hazır tutun.",
-            ]
-        ],
-    )
-    during: list[ActionItem] = Field(
-        ...,
-        min_length=1,
-        max_length=8,
-        description="Protective actions to take during an active event (1-8 items)",
-        examples=[
-            [
-                "Sarsıntı anında Çök-Kapan-Tutun hareketini uygulayın.",
-                "Pencerelerden ve devrilebilecek ağır eşyalardan uzak durun.",
-                "Asansörleri kesinlikle kullanmayın.",
-            ]
-        ],
-    )
-    after: list[ActionItem] = Field(
-        ...,
-        min_length=1,
-        max_length=8,
-        description="Safety precautions to observe after an event (1-8 items)",
-        examples=[
-            [
-                "Doğal gaz, su ve elektrik vanalarını/şalterlerini kapatın.",
-                "Acil durum çantanızı alarak binayı güvenli adımlarla tahliye edin.",
-                "Resmi makamların uyarılarını ve duyurularını takip edin.",
             ]
         ],
     )
@@ -162,14 +160,49 @@ class PreparednessGuideContent(BaseModel):
         ...,
         min_length=1,
         max_length=12,
-        description="Recommended items for the emergency supply kit (1-12 items)",
+        description=(
+            "Recommended emergency kit items tailored to household needs (1-12 items)"
+        ),
         examples=[
             [
                 "Kişi başı en az 3 günlük içme suyu",
-                "Bozulmayan kuru ve konserve gıdalar",
+                "Bozulmayan konserve ve kuru gıdalar",
                 "İlk yardım seti ve reçeteli ilaçlar",
                 "Pilli radyo ve yedek piller",
                 "Düdük ve el feneri",
+            ]
+        ],
+    )
+    communication_plan: list[ActionItem] = Field(
+        ...,
+        min_length=1,
+        max_length=8,
+        description=(
+            "Family and household emergency communication strategy (1-8 items)"
+        ),
+        examples=[
+            [
+                "Şehir dışı acil durum irtibat kişisi belirleyin.",
+                "Hane üyeleriyle güvenli buluşma noktaları kararlaştırın.",
+                "Hücresel şebekeleri meşgul etmemek için iletişimi SMS ile sürdürün.",
+            ]
+        ],
+    )
+    special_needs: list[ActionItem] = Field(
+        default_factory=list,
+        min_length=0,
+        max_length=8,
+        description=(
+            "Household-specific considerations for children, elderly, or pets "
+            "(0-8 items)"
+        ),
+        examples=[
+            [
+                "Çocuklar için kimlik kartı ve teselli eşyası hazırlayın.",
+                (
+                    "Evcil hayvanlar için mama, su, taşıma çantası ve "
+                    "aşı kartı bulundurun."
+                ),
             ]
         ],
     )
@@ -177,13 +210,11 @@ class PreparednessGuideContent(BaseModel):
         default_factory=list,
         min_length=0,
         max_length=6,
-        description=(
-            "Accessibility considerations or vulnerable household member notes (0-6)"
-        ),
+        description="Caveats and official emergency source reminders (0-6 items)",
         examples=[
             [
-                "Engelli bireyler ve evcil hayvanlar için ihtiyaç planı yapın.",
-                "Hatları meşgul etmemek için iletişimi SMS üzerinden sağlayın.",
+                "Afet anında AFAD ve yetkili kurumların resmi duyurularını takip edin.",
+                "Yetkililer izin vermeden hasarlı binalara kesinlikle girmeyin.",
             ]
         ],
     )

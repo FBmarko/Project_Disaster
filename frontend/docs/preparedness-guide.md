@@ -23,45 +23,34 @@ Areas is available at `/assembly-areas`. See
   logging, local storage, transmission, timer, artificial delay or generated
   guidance. Product copy explains that guide creation is currently unavailable.
 
-## Future integration boundary
+## Integration architecture
 
-The required architecture is **Frontend → Project Backend → AI Provider/Model →
-Project Backend → Frontend**. The frontend must never call a provider directly.
-No AI SDK, provider credentials or Vite AI key is introduced. The current backend
-now registers `POST /api/v1/ai/preparedness-guide`, but its production provider
-dependency returns None and valid calls return 503. Only tests override it with a
-stub. The local form remains unconnected until real generation is available.
+The architecture is **Frontend Form → AFET360 Backend → Gemini Provider → Structured Pydantic Output → Frontend Results UI**.
+The frontend never calls an AI provider directly. No AI SDK, provider credentials or Vite AI key is exposed on the frontend.
+All AI communication passes through `POST /api/v1/ai/preparedness-guide`.
 
-The strict request accepts only `disaster_type`, optional `city` and `language`;
-extra household fields are rejected. The response uses `summary`, `before`,
-`during`, `after`, `emergency_kit`, `important_notes` and a backend disclaimer.
-It does not supply household personalization or a separate communication plan.
-The UI arrays below remain local display types, not backend DTOs.
+The request payload accepts `disaster_type`, optional `city`, `language`, and household profile fields:
+`household_size` (1–20), `has_children`, `has_elderly_person`, and `has_pets`. Extra fields are forbidden.
 
-`PreparednessGuideResults` expects a `PreparednessGuide | null`, with exactly:
+The structured response uses `disaster_type`, `city`, `language`, `generated_by_ai`, `guide`, and `disclaimer`.
+`PreparednessGuide` contains:
 
 | Field | Type | Display heading |
 | --- | --- | --- |
+| `summary` | `string` | Hazırlık Özeti |
 | `priorities` | `string[]` | Öncelikler |
-| `emergencyKit` | `string[]` | Afet Çantası |
+| `emergencyKit` | `string[]` | Acil Durum Çantası |
 | `communicationPlan` | `string[]` | İletişim Planı |
 | `specialNeeds` | `string[]` | Özel İhtiyaçlar |
+| `importantNotes` | `string[]` | Önemli Notlar |
 
-`null` means no guide exists. `GuideSection` displays structured lists or explicit
-empty sections. Strings render as React text, not HTML. No fixture is wired into
-the page. `PreparednessSafetyNotice` is always present, with or without results.
+`null` means no guide exists yet. `GuideSection` displays structured lists or explicit
+empty sections. Strings render as React text, not HTML. `PreparednessSafetyNotice` is always present, with or without results, displaying the backend-controlled disclaimer.
 
-When production generation and the product schema are aligned, add an adapter at the page/service
-boundary, validate responses at runtime, and supply the four structured arrays.
-Implement real loading, error and cancellation states then. Clear stale results
-when the profile changes and prevent responses for older profiles from replacing
-newer results. Never pass one unstructured model paragraph directly to the UI.
-The current backend does not accept children, elderly-person or pet flags. The
-frontend must not imply that these choices personalize generated suggestions.
-Later fields can extend the profile and draft without changing the section
-renderer. Sensitive or medical questions are outside this task.
+The page and API client implement complete loading, error and cancellation states. Clear stale results
+or errors when the draft changes, and abort pending requests when re-submitting or unmounting. Never pass unstructured model paragraphs directly to the UI.
 
-## Future backend/model safety requirements
+## Backend/model safety requirements
 
 Backend/model system instructions and response validation must prevent:
 

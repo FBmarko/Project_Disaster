@@ -70,4 +70,164 @@ check('Editing any field clears the prepared profile while retaining other input
     assert.deepEqual(changed.draft, { ...draft, ...patch })
   }
 })
+
+import { ApiError } from '../src/api/client.ts'
+import {
+  buildBackendPayload,
+  getPreparednessErrorMessage,
+  parsePreparednessResponse,
+} from '../src/api/preparedness.ts'
+
+check('buildBackendPayload maps profile to snake_case payload with correct defaults and values', () => {
+  const payload = buildBackendPayload({
+    city: 'İzmir',
+    disasterType: 'EARTHQUAKE',
+    householdSize: 3,
+    hasChildren: true,
+    hasElderlyPerson: false,
+    hasPets: true,
+  })
+  assert.deepEqual(payload, {
+    disaster_type: 'earthquake',
+    city: 'İzmir',
+    language: 'tr',
+    household_size: 3,
+    has_children: true,
+    has_elderly_person: false,
+    has_pets: true,
+  })
+
+  // Whitespace-only city maps to undefined
+  const emptyCityPayload = buildBackendPayload({
+    city: '   ',
+    disasterType: 'EARTHQUAKE',
+    householdSize: 1,
+    hasChildren: false,
+    hasElderlyPerson: false,
+    hasPets: false,
+  })
+  assert.equal(emptyCityPayload.city, undefined)
+})
+
+check('parsePreparednessResponse correctly transforms backend response to camelCase contract', () => {
+  const sampleBackendResponse = {
+    disaster_type: 'earthquake',
+    city: 'İzmir',
+    language: 'tr',
+    generated_by_ai: true,
+    guide: {
+      summary: 'İzmir için hazırlık özeti.',
+      priorities: ['Deprem çantası', 'Bina güvenliği'],
+      emergency_kit: ['Su', 'Düdük', 'Fener'],
+      communication_plan: ['Şehir dışı irtibat kişisi'],
+      special_needs: ['Bebek bezi'],
+      important_notes: ['Resmi açıklamaları takip edin.'],
+    },
+    disclaimer: 'Bu rehber bilgilendirme amaçlıdır.',
+  }
+
+  const parsed = parsePreparednessResponse(sampleBackendResponse)
+  assert.equal(parsed.disasterType, 'earthquake')
+  assert.equal(parsed.city, 'İzmir')
+  assert.equal(parsed.language, 'tr')
+  assert.equal(parsed.generatedByAi, true)
+  assert.equal(parsed.disclaimer, 'Bu rehber bilgilendirme amaçlıdır.')
+  assert.equal(parsed.guide.summary, 'İzmir için hazırlık özeti.')
+  assert.deepEqual(parsed.guide.priorities, ['Deprem çantası', 'Bina güvenliği'])
+  assert.deepEqual(parsed.guide.emergencyKit, ['Su', 'Düdük', 'Fener'])
+  assert.deepEqual(parsed.guide.communicationPlan, ['Şehir dışı irtibat kişisi'])
+  assert.deepEqual(parsed.guide.specialNeeds, ['Bebek bezi'])
+  assert.deepEqual(parsed.guide.importantNotes, ['Resmi açıklamaları takip edin.'])
+
+  // Assert legacy fields (before, during, after) are absent
+  assert.equal('before' in parsed.guide, false)
+  assert.equal('during' in parsed.guide, false)
+  assert.equal('after' in parsed.guide, false)
+})
+
+check('parsePreparednessResponse rejects malformed or incomplete backend structures', () => {
+  assert.throws(() => parsePreparednessResponse(null))
+  assert.throws(() => parsePreparednessResponse({}))
+  // Missing guide
+  assert.throws(() => parsePreparednessResponse({
+    disaster_type: 'earthquake',
+    language: 'tr',
+    generated_by_ai: true,
+    disclaimer: 'test',
+  }))
+  // Missing disclaimer
+  assert.throws(() => parsePreparednessResponse({
+    disaster_type: 'earthquake',
+    language: 'tr',
+    generated_by_ai: true,
+    guide: {
+      summary: 'ö', priorities: [], emergency_kit: [],
+      communication_plan: [], special_needs: [], important_notes: [],
+    },
+  }))
+  // Non-array items in guide
+  assert.throws(() => parsePreparednessResponse({
+    disaster_type: 'earthquake',
+    language: 'tr',
+    generated_by_ai: true,
+    disclaimer: 'test',
+    guide: {
+      summary: 'ö',
+      priorities: 'not-an-array',
+      emergency_kit: [], communication_plan: [],
+      special_needs: [], important_notes: [],
+    },
+  }))
+})
+
+check('getPreparednessErrorMessage maps HTTP status codes and network errors correctly', () => {
+  assert.equal(
+    getPreparednessErrorMessage(new ApiError(422)),
+    'Girdiğiniz bilgiler geçersiz. Lütfen form alanlarını kontrol ediniz.',
+  )
+  assert.equal(
+    getPreparednessErrorMessage(new ApiError(429)),
+    'Çok fazla istek gönderildi. Lütfen bir süre bekleyip tekrar deneyiniz.',
+  )
+  assert.equal(
+    getPreparednessErrorMessage(new ApiError(502)),
+    'Yapay zeka servisi yanıt veremedi. Lütfen biraz sonra tekrar deneyiniz.',
+  )
+  assert.equal(
+    getPreparednessErrorMessage(new ApiError(503)),
+    'Hazırlık rehberi servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyiniz.',
+  )
+  assert.equal(
+    getPreparednessErrorMessage(new ApiError(500)),
+    'Bağlantı kurulamadı. Lütfen internet bağlantınızı ve servis durumunu kontrol ediniz.',
+  )
+  assert.equal(
+    getPreparednessErrorMessage(new Error('Network error')),
+    'Bağlantı kurulamadı. Lütfen internet bağlantınızı ve servis durumunu kontrol ediniz.',
+  )
+  const timeoutErr = new Error('Request timed out')
+  timeoutErr.name = 'TimeoutError'
+  assert.equal(
+    getPreparednessErrorMessage(timeoutErr),
+    'Hazırlık rehberinin oluşturulması beklenenden uzun sürdü. Lütfen tekrar deneyiniz.',
+  )
+})
+
+import { DEFAULT_POST_TIMEOUT_MS } from '../src/api/client.ts'
+import { PREPAREDNESS_TIMEOUT_MS } from '../src/api/preparedness.ts'
+
+check('Timeout configurations are bounded, finite, and AI timeout exceeds provider window', () => {
+  assert.equal(typeof DEFAULT_POST_TIMEOUT_MS, 'number')
+  assert.equal(Number.isFinite(DEFAULT_POST_TIMEOUT_MS), true)
+  assert.equal(DEFAULT_POST_TIMEOUT_MS, 20_000)
+
+  assert.equal(typeof PREPAREDNESS_TIMEOUT_MS, 'number')
+  assert.equal(Number.isFinite(PREPAREDNESS_TIMEOUT_MS), true)
+  assert.equal(PREPAREDNESS_TIMEOUT_MS, 45_000)
+
+  // AI timeout must exceed backend Gemini 30.0s deadline + transport margin
+  assert.equal(PREPAREDNESS_TIMEOUT_MS > 30_000, true)
+  assert.equal(PREPAREDNESS_TIMEOUT_MS >= DEFAULT_POST_TIMEOUT_MS, true)
+})
+
 console.log(`OK: ${checks} preparedness checks passed. No services, generated results or network used.`)

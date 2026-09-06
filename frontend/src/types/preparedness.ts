@@ -7,12 +7,23 @@ export interface PreparednessProfile {
   hasPets: boolean
 }
 
-/** Structured display contract; the future backend transport contract is not defined yet. */
+/** Structured display contract for the AI disaster preparedness guide. */
 export interface PreparednessGuide {
+  summary: string
   priorities: string[]
   emergencyKit: string[]
   communicationPlan: string[]
   specialNeeds: string[]
+  importantNotes: string[]
+}
+
+export interface PreparednessGuideResponse {
+  disasterType: string
+  city: string | null
+  language: string
+  generatedByAi: boolean
+  guide: PreparednessGuide
+  disclaimer: string
 }
 
 export type HouseholdChoice = 'hasChildren' | 'hasElderlyPerson' | 'hasPets'

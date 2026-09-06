@@ -209,31 +209,49 @@ class PreparednessSafetyPolicy:
             prohibitions = "\n".join(f"- {p}" for p in cls.PROHIBITED_BEHAVIORS_TR)
             permitted = "\n".join(f"- {p}" for p in cls.PERMITTED_SCOPE_TR)
             lang_instruction = "Yanıtınızı kesinlikle Türkçe olarak hazırlayın."
-            phase_guidance = (
-                "ZAMAN FAZI KURALLARI:\n"
-                "- 'before' (öncesi): Afet öncesinde alınacak hazırlık ve önlem "
-                "tedbirleri.\n"
-                "- 'during' (sırası): Olay anındaki anlık can koruma eylemleri (örn. "
-                "deprem sarsıntısı sürerken yerinde kalıp Çök-Kapan-Tutun yapın; "
-                "sarsıntı anında merdivenlere/çıkışlara koşmayın).\n"
-                "- 'after' (sonrası): Olay bittikten sonraki güvenlik adımları; binaya "
-                "geri dönüş ve tüm durumsal kararlarda resmi makamların "
-                "yönlendirmelerini takip edin.\n\n"
+            section_guidance = (
+                "BÖLÜM KURALLARI:\n"
+                "- 'summary': Afet türü, şehir ve hane yapısına göre hazırlanmış "
+                "kısa genel özet (10-600 karakter).\n"
+                "- 'priorities': En kritik can güvenliği ve hazırlık öncelikleri "
+                "(1-8 madde; depremde sarsıntı anında Çök-Kapan-Tutun, selde suya "
+                "girmeme, yangında derhal tahliye gibi temel güvenlik kurallarını "
+                "içermelidir).\n"
+                "- 'emergency_kit': Acil durum çantası ve temel ihtiyaç "
+                "malzemeleri (1-12 madde; hane kişi sayısına ve üyelerine göre "
+                "makul ölçüde uyarlanmış).\n"
+                "- 'communication_plan': Aile ve hane halkı acil durum iletişim "
+                "planı (1-8 madde; toplanma noktası, şehir dışı irtibat kişisi, "
+                "SMS kullanımı vb.).\n"
+                "- 'special_needs': Çocuk, yaşlı birey veya evcil hayvan gibi "
+                "belirtilen hane özelliklerine yönelik hazırlık adımları (0-8 "
+                "madde; özel durum belirtilmemişse genel erişilebilirlik/bireysel "
+                "ihtiyaç tavsiyeleri).\n"
+                "- 'important_notes': Resmi makamlara (AFAD) yönlendirme, kritik "
+                "güvenlik uyarıları ve hatırlatmalar (0-6 madde).\n\n"
             )
         else:
             prohibitions = "\n".join(f"- {p}" for p in cls.PROHIBITED_BEHAVIORS_EN)
             permitted = "\n".join(f"- {p}" for p in cls.PERMITTED_SCOPE_EN)
             lang_instruction = "Prepare your response strictly in English."
-            phase_guidance = (
-                "TEMPORAL PHASE INTEGRITY REQUIREMENTS:\n"
-                "- 'before': Actions must be preparation and mitigation taken before "
-                "an event occurs.\n"
-                "- 'during': Actions must focus solely on immediate life-protection "
-                "during the event (e.g., during earthquake shaking, stay in place; "
-                "do not run to stairs or attempt evacuation).\n"
-                "- 'after': Actions must focus on post-event safety after the "
-                "immediate hazard has passed; defer all re-entry and situational "
-                "decisions to verified official emergency authorities.\n\n"
+            section_guidance = (
+                "SECTION REQUIREMENTS:\n"
+                "- 'summary': Concise scenario and household overview "
+                "(10-600 characters).\n"
+                "- 'priorities': Most critical immediate life-safety actions "
+                "and essential preparations (1-8 items; e.g. Drop-Cover-Hold On "
+                "for earthquake, never walking/driving in floodwater for flood, "
+                "immediate evacuation for fire).\n"
+                "- 'emergency_kit': Recommended emergency kit items tailored to "
+                "household needs and size (1-12 items).\n"
+                "- 'communication_plan': Family and household emergency "
+                "communication strategy (1-8 items; out-of-area contact, meeting "
+                "points, SMS over voice).\n"
+                "- 'special_needs': Household-specific considerations for "
+                "children, elderly members, or pets (0-8 items; if none, "
+                "general accessibility/individual guidance).\n"
+                "- 'important_notes': Caveats, official emergency source "
+                "reminders (AFAD), and essential boundaries (0-6 items).\n\n"
             )
 
         return (
@@ -244,16 +262,16 @@ class PreparednessSafetyPolicy:
             f"{prohibitions}\n\n"
             "PERMITTED EDUCATIONAL PREPAREDNESS SCOPE:\n"
             f"{permitted}\n\n"
-            f"{phase_guidance}"
+            f"{section_guidance}"
             "OUTPUT FORMAT REQUIREMENTS:\n"
             "You must return ONLY valid JSON matching this schema:\n"
             "{\n"
             '  "summary": "10-600 characters overview",\n'
-            '  "before": ["1 to 8 actionable preparation steps"],\n'
-            '  "during": ["1 to 8 protective actions during the event"],\n'
-            '  "after": ["1 to 8 safety steps after the event"],\n'
+            '  "priorities": ["1 to 8 critical priorities and actions"],\n'
             '  "emergency_kit": ["1 to 12 essential kit items"],\n'
-            '  "important_notes": ["0 to 6 notes on accessibility, elderly, pets"]\n'
+            '  "communication_plan": ["1 to 8 family communication steps"],\n'
+            '  "special_needs": ["0 to 8 notes for children, elderly, or pets"],\n'
+            '  "important_notes": ["0 to 6 caveats and official source reminders"]\n'
             "}\n"
             "Do NOT include Markdown formatting or text outside the JSON object."
         )
@@ -277,9 +295,28 @@ class PreparednessSafetyPolicy:
         else:
             city_clause = "Geographic Context: None specified (General guidance).\n"
 
+        children_val = "Yes" if request.has_children else "No"
+        elderly_val = "Yes" if request.has_elderly_person else "No"
+        pets_val = "Yes" if request.has_pets else "No"
+
+        household_clause = (
+            "HOUSEHOLD CONTEXT:\n"
+            f"- Household size: {request.household_size} person(s)\n"
+            f"- Children in household: {children_val}\n"
+            f"- Elderly person in household: {elderly_val}\n"
+            f"- Pets in household: {pets_val}\n"
+            "- Personalization rules: Scale emergency kit quantities reasonably "
+            f"for {request.household_size} person(s). "
+            "Address children, elderly members, and pets in 'special_needs' and "
+            "kit items only as indicated above. Do NOT fabricate specific ages, "
+            "medical conditions, diagnoses, prescription drug names, or pet "
+            "species.\n"
+        )
+
         return (
             f"DISASTER TYPE: {disaster_type.value.upper()}\n"
             f"{city_clause}"
+            f"{household_clause}"
             f"SPECIFIC DOMAIN FOCUS:\n{domain_guidance}\n\n"
             "Generate practical, step-by-step educational guidance matching the "
             "required JSON structure exactly. Do not output anything outside JSON."

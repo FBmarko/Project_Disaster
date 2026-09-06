@@ -36,3 +36,33 @@ export async function getJson<T>(path: string, parse: (value: unknown) => T, sig
   if (!response.ok) throw new ApiError(response.status)
   return parse(await response.json() as unknown)
 }
+
+export const DEFAULT_POST_TIMEOUT_MS = 20_000
+
+export async function postJson<T>(
+  path: string,
+  body: unknown,
+  parse: (value: unknown) => T,
+  signal?: AbortSignal,
+  timeoutMs: number = DEFAULT_POST_TIMEOUT_MS,
+): Promise<T> {
+  const url = resolveApiUrl(path, import.meta.env?.VITE_API_BASE_URL)
+  const signals: AbortSignal[] = [AbortSignal.timeout(timeoutMs)]
+  if (signal) {
+    signals.push(signal)
+  }
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.any(signals),
+    credentials: 'omit',
+    cache: 'no-store',
+    referrerPolicy: 'no-referrer',
+  })
+  if (!response.ok) throw new ApiError(response.status)
+  return parse(await response.json() as unknown)
+}

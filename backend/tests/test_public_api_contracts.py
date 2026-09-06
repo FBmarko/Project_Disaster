@@ -439,14 +439,17 @@ def test_ai_preparedness_guide_public_contract() -> None:
         guide = data["guide"]
         for section in [
             "summary",
-            "before",
-            "during",
-            "after",
+            "priorities",
             "emergency_kit",
+            "communication_plan",
+            "special_needs",
             "important_notes",
         ]:
             assert section in guide
             assert guide[section] is not None
+
+        for old_sec in ["before", "during", "after"]:
+            assert old_sec not in guide
     finally:
         app.dependency_overrides.pop(get_ai_provider, None)
 

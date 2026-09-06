@@ -219,25 +219,32 @@ def test_response_contract_turkish() -> None:
         guide = data["guide"]
         assert set(guide.keys()) == {
             "summary",
-            "before",
-            "during",
-            "after",
+            "priorities",
             "emergency_kit",
+            "communication_plan",
+            "special_needs",
             "important_notes",
         }
+        # Verify old fields are absent
+        for old_field in ["before", "during", "after"]:
+            assert old_field not in guide
+
         assert 10 <= len(guide["summary"]) <= 600
-        assert 1 <= len(guide["before"]) <= 8
-        assert 1 <= len(guide["during"]) <= 8
-        assert 1 <= len(guide["after"]) <= 8
+        assert 1 <= len(guide["priorities"]) <= 8
         assert 1 <= len(guide["emergency_kit"]) <= 12
+        assert 1 <= len(guide["communication_plan"]) <= 8
+        assert 0 <= len(guide["special_needs"]) <= 8
         assert 0 <= len(guide["important_notes"]) <= 6
 
-        for item in guide["before"] + guide["during"] + guide["after"]:
+        for item in (
+            guide["priorities"]
+            + guide["communication_plan"]
+            + guide["special_needs"]
+            + guide["important_notes"]
+        ):
             assert 3 <= len(item) <= 300
         for item in guide["emergency_kit"]:
             assert 2 <= len(item) <= 200
-        for item in guide["important_notes"]:
-            assert 3 <= len(item) <= 300
     finally:
         app.dependency_overrides.pop(get_ai_provider, None)
 
@@ -261,10 +268,16 @@ def test_response_contract_english() -> None:
         assert data["disclaimer"] == DEFAULT_AI_DISCLAIMER_EN
 
         guide = data["guide"]
-        assert 1 <= len(guide["before"]) <= 8
-        assert 1 <= len(guide["during"]) <= 8
-        assert 1 <= len(guide["after"]) <= 8
+        assert 1 <= len(guide["priorities"]) <= 8
         assert 1 <= len(guide["emergency_kit"]) <= 12
+        assert 1 <= len(guide["communication_plan"]) <= 8
+        assert 0 <= len(guide["special_needs"]) <= 8
+        assert 0 <= len(guide["important_notes"]) <= 6
+
+        # Old fields absent
+        assert "before" not in guide
+        assert "during" not in guide
+        assert "after" not in guide
     finally:
         app.dependency_overrides.pop(get_ai_provider, None)
 
@@ -324,13 +337,13 @@ def test_provider_upstream_error_returns_502() -> None:
 
 def test_provider_output_schema_violation_returns_502() -> None:
     """Verify provider output violating list bounds fails with HTTP 502."""
-    # Create invalid content with 9 items in 'before' (allowed max is 8)
+    # Create invalid content with 9 items in 'priorities' (allowed max is 8)
     invalid_content = PreparednessGuideContent.model_construct(
         summary="Too many items test summary",
-        before=[f"Step {i}" for i in range(1, 10)],  # 9 items
-        during=["Action 1"],
-        after=["Action 2"],
+        priorities=[f"Action {i}" for i in range(1, 10)],  # 9 items
         emergency_kit=["Kit 1"],
+        communication_plan=["Plan 1"],
+        special_needs=[],
         important_notes=[],
     )
     stub = StubPreparednessAIProvider(mode="success", custom_content=invalid_content)
@@ -499,8 +512,8 @@ def test_fire_domain_context_safety_and_extinguisher_boundary() -> None:
     assert "isteğe bağlı" in tr_ctx or "kontrol edilebilir" in tr_ctx
 
 
-def test_temporal_phase_integrity_and_authority_deference_in_system_prompt() -> None:
-    """Verify system prompt enforces temporal phase boundaries and authority."""
+def test_system_prompt_structure_and_authority_deference() -> None:
+    """Verify system prompt enforces section rules and authority deference."""
     prompt_en = PreparednessSafetyPolicy.build_system_prompt(
         SupportedLanguage.EN
     ).lower()
@@ -508,20 +521,22 @@ def test_temporal_phase_integrity_and_authority_deference_in_system_prompt() -> 
         SupportedLanguage.TR
     ).lower()
 
-    # English prompt must enforce before, during, after temporal separation
-    assert "temporal phase integrity" in prompt_en
-    assert "before" in prompt_en
-    assert "during" in prompt_en
-    assert "after" in prompt_en
-    assert "stay in place" in prompt_en or "do not run to stairs" in prompt_en
-    assert "official emergency authorities" in prompt_en
+    # English prompt must contain canonical sections and authority deference
+    assert "section requirements" in prompt_en
+    assert "priorities" in prompt_en
+    assert "emergency_kit" in prompt_en
+    assert "communication_plan" in prompt_en
+    assert "special_needs" in prompt_en
+    assert "important_notes" in prompt_en
+    assert "emergency authorities" in prompt_en or "official authorities" in prompt_en
 
-    # Turkish prompt must enforce öncesi, sırası, sonrası temporal separation
-    assert "zaman fazı kuralları" in prompt_tr or "zaman faz" in prompt_tr
-    assert "before" in prompt_tr
-    assert "during" in prompt_tr
-    assert "after" in prompt_tr
-    assert "yerinde kalıp" in prompt_tr or "merdivenlere" in prompt_tr
+    # Turkish prompt must contain canonical sections and authority deference
+    assert "bölüm" in prompt_tr and "kurallar" in prompt_tr
+    assert "priorities" in prompt_tr
+    assert "emergency_kit" in prompt_tr
+    assert "communication_plan" in prompt_tr
+    assert "special_needs" in prompt_tr
+    assert "important_notes" in prompt_tr
     assert "resmi makam" in prompt_tr
 
 
@@ -539,13 +554,23 @@ def test_accessibility_policy_and_no_sensitive_profile_fields() -> None:
     assert "engelliler" in tr_permitted
     assert "evcil hayvanlar" in tr_permitted
 
-    # Verify request model strictly collects NO sensitive health or profile fields
-    allowed_fields = {"disaster_type", "city", "language"}
+    # Verify request model collects only approved fields and no sensitive fields
+    allowed_fields = {
+        "disaster_type",
+        "city",
+        "language",
+        "household_size",
+        "has_children",
+        "has_elderly_person",
+        "has_pets",
+    }
     actual_fields = set(PreparednessGuideRequest.model_fields.keys())
     assert actual_fields == allowed_fields
     assert "disability" not in actual_fields
     assert "medical_history" not in actual_fields
     assert "age" not in actual_fields
+    assert "diagnosis" not in actual_fields
+    assert "prescription" not in actual_fields
 
 
 def test_production_import_boundary_has_no_fake_provider() -> None:
@@ -568,6 +593,10 @@ def test_safety_policy_prompt_builder_separates_context_from_policy() -> None:
         disaster_type=DisasterType.EARTHQUAKE,
         city="İzmir",
         language=SupportedLanguage.TR,
+        household_size=3,
+        has_children=True,
+        has_elderly_person=False,
+        has_pets=True,
     )
     sys_prompt = PreparednessSafetyPolicy.build_system_prompt(req_tr.language)
     user_context = PreparednessSafetyPolicy.build_user_context(req_tr)
@@ -575,12 +604,128 @@ def test_safety_policy_prompt_builder_separates_context_from_policy() -> None:
     # System prompt must contain schema and prohibitions
     assert "MANDATORY SAFETY POLICY" in sys_prompt
     assert "summary" in sys_prompt
-    assert "before" in sys_prompt
+    assert "priorities" in sys_prompt
 
-    # User context must mark city strictly as plain geographic framing
+    # User context must mark city as plain framing and include household context
     assert "Geographic Context: İzmir" in user_context
     assert "Plain geographic context only" in user_context
     assert "EARTHQUAKE" in user_context
+    assert "HOUSEHOLD CONTEXT:" in user_context
+    assert "Household size: 3 person(s)" in user_context
+    assert "Children in household: Yes" in user_context
+    assert "Elderly person in household: No" in user_context
+    assert "Pets in household: Yes" in user_context
+
+
+def test_request_validation_household_defaults_on_minimal_request() -> None:
+    """Verify minimal request applies canonical household defaults."""
+    stub = StubPreparednessAIProvider(mode="success")
+    app.dependency_overrides[get_ai_provider] = lambda: stub
+    try:
+        response = client.post(
+            "/api/v1/ai/preparedness-guide",
+            json={"disaster_type": "earthquake"},
+        )
+        assert response.status_code == 200
+        assert stub.last_request is not None
+        assert stub.last_request.household_size == 1
+        assert stub.last_request.has_children is False
+        assert stub.last_request.has_elderly_person is False
+        assert stub.last_request.has_pets is False
+    finally:
+        app.dependency_overrides.pop(get_ai_provider, None)
+
+
+def test_request_validation_fully_personalized_request() -> None:
+    """Verify fully personalized request passes and populates all fields."""
+    stub = StubPreparednessAIProvider(mode="success")
+    app.dependency_overrides[get_ai_provider] = lambda: stub
+    try:
+        payload = {
+            "disaster_type": "earthquake",
+            "city": "Ankara",
+            "language": "tr",
+            "household_size": 4,
+            "has_children": True,
+            "has_elderly_person": False,
+            "has_pets": True,
+        }
+        response = client.post("/api/v1/ai/preparedness-guide", json=payload)
+        assert response.status_code == 200
+        assert stub.last_request is not None
+        assert stub.last_request.household_size == 4
+        assert stub.last_request.has_children is True
+        assert stub.last_request.has_elderly_person is False
+        assert stub.last_request.has_pets is True
+    finally:
+        app.dependency_overrides.pop(get_ai_provider, None)
+
+
+@pytest.mark.parametrize("size", [1, 2, 10, 20])
+def test_request_validation_household_size_bounds_accepted(size: int) -> None:
+    """Verify valid household sizes 1 to 20 are accepted."""
+    stub = StubPreparednessAIProvider(mode="success")
+    app.dependency_overrides[get_ai_provider] = lambda: stub
+    try:
+        response = client.post(
+            "/api/v1/ai/preparedness-guide",
+            json={"disaster_type": "earthquake", "household_size": size},
+        )
+        assert response.status_code == 200
+        assert stub.last_request is not None
+        assert stub.last_request.household_size == size
+    finally:
+        app.dependency_overrides.pop(get_ai_provider, None)
+
+
+@pytest.mark.parametrize("invalid_size", [0, -1, 21, 100])
+def test_request_validation_household_size_bounds_rejected(invalid_size: int) -> None:
+    """Verify out-of-range household sizes (<1 or >20) are rejected with 422."""
+    response = client.post(
+        "/api/v1/ai/preparedness-guide",
+        json={"disaster_type": "earthquake", "household_size": invalid_size},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("bad_type_size", ["four", 2.5, None, []])
+def test_request_validation_household_size_invalid_type_rejected(
+    bad_type_size: object,
+) -> None:
+    """Verify non-integer household size values are rejected with 422."""
+    response = client.post(
+        "/api/v1/ai/preparedness-guide",
+        json={"disaster_type": "earthquake", "household_size": bad_type_size},
+    )
+    assert response.status_code == 422
+
+
+def test_personalization_context_wired_to_provider() -> None:
+    """Verify household fields are included in server-controlled user context."""
+    stub = StubPreparednessAIProvider(mode="success")
+    app.dependency_overrides[get_ai_provider] = lambda: stub
+    try:
+        payload = {
+            "disaster_type": "earthquake",
+            "city": "İzmir",
+            "language": "tr",
+            "household_size": 5,
+            "has_children": True,
+            "has_elderly_person": True,
+            "has_pets": False,
+        }
+        response = client.post("/api/v1/ai/preparedness-guide", json=payload)
+        assert response.status_code == 200
+        assert stub.last_user_context is not None
+        ctx = stub.last_user_context
+        assert "HOUSEHOLD CONTEXT:" in ctx
+        assert "Household size: 5 person(s)" in ctx
+        assert "Children in household: Yes" in ctx
+        assert "Elderly person in household: Yes" in ctx
+        assert "Pets in household: No" in ctx
+        assert "Personalization rules:" in ctx
+    finally:
+        app.dependency_overrides.pop(get_ai_provider, None)
 
 
 # ==============================================================================

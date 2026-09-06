@@ -61,10 +61,10 @@ def test_oversized_body_does_not_invoke_ai_provider(
     mock_provider = MagicMock()
     mock_provider.generate_guide.return_value = PreparednessGuideContent(
         summary="Safe summary content text",
-        before=["Step 1"],
-        during=["Step 2"],
-        after=["Step 3"],
+        priorities=["Step 1"],
         emergency_kit=["Item 1"],
+        communication_plan=["Plan 1"],
+        special_needs=[],
         important_notes=["Note 1"],
     )
     app.dependency_overrides[get_ai_provider] = lambda: mock_provider

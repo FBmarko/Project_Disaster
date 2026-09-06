@@ -59,23 +59,13 @@ class StubPreparednessAIProvider(PreparednessAIProvider):
         if request.language == SupportedLanguage.TR:
             return PreparednessGuideContent(
                 summary=(
-                    "Deprem öncesi, sırası ve sonrasında hazırlık hayat kurtarır. "
-                    "Evinizde tehlike avı yapın ve çantanızı hazır tutun."
+                    "Deprem hazırlığı bilinçli ve planlı adımlarla hayat kurtarır. "
+                    "Evinizde tehlike avı yapın ve acil durum çantanızı hazır tutun."
                 ),
-                before=[
-                    "Ağır mobilyaları duvara sabitleyin.",
-                    "Aile afet ve acil durum planı hazırlayın.",
-                    "Acil durum çantasını hazır tutun.",
-                ],
-                during=[
-                    "Sarsıntı anında sağlam bir eşyanın yanında Çök-Kapan-Tutun yapın.",
-                    "Pencerelerden ve merdivenlerden uzak durun.",
-                    "Asansörleri kesinlikle kullanmayın.",
-                ],
-                after=[
-                    "Tesisatları (gaz, su, elektrik) vanalardan kapatın.",
-                    "Acil durum çantanızı alarak binayı merdivenlerden tahliye edin.",
-                    "Yetkililerin resmi duyurularını takip edin.",
+                priorities=[
+                    "Sarsıntı anında sağlam eşyanın yanında Çök-Kapan-Tutun yapın.",
+                    "Pencerelerden ve devrilebilecek eşyalardan uzak durun.",
+                    "Ağır mobilyaları ve beyaz eşyaları duvara sabitleyin.",
                 ],
                 emergency_kit=[
                     "Kişi başı en az 3 günlük içme suyu",
@@ -84,31 +74,30 @@ class StubPreparednessAIProvider(PreparednessAIProvider):
                     "Pilli radyo ve yedek piller",
                     "El feneri ve düdük",
                 ],
+                communication_plan=[
+                    "Şehir dışı acil durum irtibat kişisi belirleyin.",
+                    "Aile bireyleriyle toplanma ve buluşma noktaları kararlaştırın.",
+                    "Şebeke yoğunluğunu önlemek için iletişimi SMS ile sağlayın.",
+                ],
+                special_needs=[
+                    "Çocuklar için kimlik kartı ve teselli eşyası hazırlayın.",
+                    "Evcil hayvanlar için mama, su ve taşıma çantası bulundurun.",
+                ],
                 important_notes=[
-                    "Yaşlı ve engelliler için özel ihtiyaçları planlayın.",
-                    "Evcil hayvanlarınız için mama ve tasma hazırlayın.",
+                    "Afet anında yetkili kurumların resmi duyurularını takip edin.",
+                    "Yetkililer izin vermeden hasarlı binalara kesinlikle girmeyin.",
                 ],
             )
         else:
             return PreparednessGuideContent(
                 summary=(
-                    "Preparedness before, during, and after an earthquake saves lives. "
+                    "Earthquake preparedness saves lives through structured planning. "
                     "Conduct a home hazard hunt and maintain an emergency kit."
                 ),
-                before=[
-                    "Secure heavy furniture and appliances to walls.",
-                    "Establish a family emergency plan and meeting point.",
-                    "Keep an emergency supply kit in an easily accessible location.",
-                ],
-                during=[
+                priorities=[
                     "Drop, Cover, and Hold On under sturdy furniture away from glass.",
                     "Stay away from windows, mirrors, and unanchored items.",
-                    "Never use elevators during an earthquake.",
-                ],
-                after=[
-                    "Safely shut off gas, water, and electricity at main valves.",
-                    "Evacuate using stairs with your emergency kit; do not rush.",
-                    "Monitor official emergency announcements and keep lines free.",
+                    "Never use elevators or run to stairs during shaking.",
                 ],
                 emergency_kit=[
                     "At least 3-day supply of drinking water per person",
@@ -117,8 +106,20 @@ class StubPreparednessAIProvider(PreparednessAIProvider):
                     "Battery-powered radio and extra batteries",
                     "Flashlight and emergency whistle",
                 ],
+                communication_plan=[
+                    "Designate an out-of-area emergency contact person.",
+                    "Agree on household meeting locations inside/outside neighborhood.",
+                    "Use text messaging instead of voice calls to keep networks clear.",
+                ],
+                special_needs=[
+                    "Include identification, comfort items, and supplies for children.",
+                    "Prepare pet carriers, food, water, and vaccination records.",
+                ],
                 important_notes=[
-                    "Plan for specific needs of infants, elderly, or disabled persons.",
-                    "Include pet food, water, and carriers in household preparations.",
+                    "Follow official announcements from AFAD and authorities.",
+                    (
+                        "Never re-enter damaged buildings until certified "
+                        "safe by officials."
+                    ),
                 ],
             )

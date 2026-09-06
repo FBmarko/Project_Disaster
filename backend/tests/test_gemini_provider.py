@@ -27,26 +27,25 @@ def _make_sample_valid_content_dict() -> dict[str, object]:
     """Helper returning valid dictionary conforming to PreparednessGuideContent."""
     return {
         "summary": "Deprem anında sakin kalıp güvenli bir noktaya sığının.",
-        "before": [
-            "Acil durum çantasını hazır bulundurun.",
-            "Ağır mobilyaları duvara sabitleyin.",
-            "Aile afet ve acil durum planı oluşturun.",
-        ],
-        "during": [
+        "priorities": [
             "Çök, Kapan, Tutun pozisyonunu alın.",
             "Pencerelerden ve devrilebilecek eşyalardan uzak durun.",
             "Sarsıntı süresince merdiven ve asansörlere koşmayın.",
-        ],
-        "after": [
-            "Sarsıntı tamamen bittiğinde yaralanmaları kontrol edin.",
-            "Güvenliyse gaz ve elektrik ana vanalarını kontrol edin.",
-            "Merdivenleri kullanarak binayı dikkatlice tahliye edin.",
         ],
         "emergency_kit": [
             "Su ve dayanıklı gıdalar",
             "İlk yardım kiti ve acil ilaçlar",
             "El feneri ve yedek piller",
             "Düdük ve çok amaçlı çakı",
+        ],
+        "communication_plan": [
+            "Şehir dışı irtibat kişisi belirleyin.",
+            "Hane buluşma noktasını kararlaştırın.",
+            "İletişim için SMS tercih edin.",
+        ],
+        "special_needs": [
+            "Çocuklar için teselli malzemesi ve kimlik bilgisi ekleyin.",
+            "Evcil hayvanlar için taşıma çantası ve mama bulundurun.",
         ],
         "important_notes": [
             "Resmi AFAD ve valilik duyurularını takip edin.",
@@ -353,10 +352,10 @@ def test_end_to_end_router_with_gemini_provider() -> None:
         assert payload["language"] == "tr"
         assert payload["generated_by_ai"] is True
         assert payload["guide"]["summary"] == valid_content["summary"]
-        assert len(payload["guide"]["before"]) == 3
-        assert len(payload["guide"]["during"]) == 3
-        assert len(payload["guide"]["after"]) == 3
+        assert len(payload["guide"]["priorities"]) == 3
         assert len(payload["guide"]["emergency_kit"]) == 4
+        assert len(payload["guide"]["communication_plan"]) == 3
+        assert len(payload["guide"]["special_needs"]) == 2
         assert len(payload["guide"]["important_notes"]) == 2
         assert "AFAD" in payload["disclaimer"]
     finally:

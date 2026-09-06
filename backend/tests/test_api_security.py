@@ -182,10 +182,10 @@ def test_ai_rate_limit_enforcement_and_quota_defense(
     mock_provider = MagicMock()
     mock_provider.generate_guide.return_value = PreparednessGuideContent(
         summary="Test summary",
-        before=["Step 1"],
-        during=["Step 2"],
-        after=["Step 3"],
+        priorities=["Step 1"],
         emergency_kit=["Item 1"],
+        communication_plan=["Plan 1"],
+        special_needs=[],
         important_notes=["Note 1"],
     )
 
@@ -230,10 +230,10 @@ def test_ai_rate_limit_is_stricter_than_general_rate_limit(
     mock_provider = MagicMock()
     mock_provider.generate_guide.return_value = PreparednessGuideContent(
         summary="Valid preparedness summary text",
-        before=["Step 1"],
-        during=["Step 2"],
-        after=["Step 3"],
+        priorities=["Step 1"],
         emergency_kit=["Item 1"],
+        communication_plan=["Plan 1"],
+        special_needs=[],
         important_notes=["Note 1"],
     )
     app.dependency_overrides[get_ai_provider] = lambda: mock_provider
@@ -315,10 +315,10 @@ def test_rate_limit_429_exact_contract_stability(
     mock_provider = MagicMock()
     mock_provider.generate_guide.return_value = PreparednessGuideContent(
         summary="Sample summary",
-        before=["Before step"],
-        during=["During step"],
-        after=["After step"],
+        priorities=["Priority step"],
         emergency_kit=["Kit item"],
+        communication_plan=["Communication step"],
+        special_needs=[],
         important_notes=[],
     )
     app.dependency_overrides[get_ai_provider] = lambda: mock_provider
