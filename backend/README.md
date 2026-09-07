@@ -83,6 +83,39 @@ A PostgreSQL + PostGIS service is configured using Docker Compose at the reposit
 
 *Note: During local development, the PostgreSQL/PostGIS database runs inside Docker, while the FastAPI backend runs directly on the host machine.*
 
+## Dataset Provisioning & Readiness
+
+AFET360 decouples database schema migrations from dataset provisioning. Migrations create tables; datasets must be provisioned explicitly.
+
+For comprehensive instructions on dataset licensing, provenance, and deployment workflows, see the [Dataset Provisioning Runbook](docs/dataset-provisioning.md).
+
+### Inspect Readiness (Read-Only)
+```bash
+# Check status of faults, hazard points, assembly areas, and earthquakes
+python -m app.scripts.provision_datasets status
+
+# Machine-readable JSON output
+python -m app.scripts.provision_datasets status --json
+
+# CI / Health check mode (exits 0 if all static datasets ready, 1 otherwise)
+python -m app.scripts.provision_datasets status --check
+```
+
+### Static Dataset Provisioning
+```bash
+# Explicitly provision static datasets using local artifacts
+python -m app.scripts.provision_datasets provision-static \
+    --faults-file /path/to/gem_active_faults.geojson \
+    --gshm-gpkg /path/to/gem_gshm_v2026.1.gpkg \
+    --assembly-snapshot /path/to/osm_assembly_areas.json
+```
+
+### Dynamic Earthquake Synchronization
+```bash
+# Synchronize rolling 10-year M >= 4.5 events from AFAD (requires network)
+python -m app.scripts.sync_afad_earthquakes --min-magnitude 4.5 --scope turkey-context
+```
+
 ## Running the Development Server
 
 Start the local development server with auto-reload:
