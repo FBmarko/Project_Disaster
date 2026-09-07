@@ -3,6 +3,7 @@ import { parseFaultCollection } from '../src/api/faults.ts'
 import { parseFaultEarthquakes } from '../src/api/earthquakes.ts'
 import { parseAssemblyCollection } from '../src/api/assemblyAreas.ts'
 import { parseProvinceHazards } from '../src/api/hazard.ts'
+import { parseScenarioResponse } from '../src/api/scenario.ts'
 import { ApiError, resolveApiUrl } from '../src/api/client.ts'
 import { assemblyDirectionsUrl } from '../src/utils/assemblyAreas.ts'
 import { TURKEY_PROVINCES } from '../src/constants/provinces.ts'
@@ -152,3 +153,70 @@ assert.equal(statusErr.status, 404)
 assert.equal(statusErr instanceof ApiError, true)
 
 console.log('PASS: API base URL resolution (absent, configured, trailing-slash) and ApiError semantics')
+
+// Deterministic Scenario Calculation API contract
+const validScenarioPayload = {
+  model: {
+    name: 'Akkar et al. (2014) Rhyp Point-Source GMPE',
+    citation: 'Akkar, S., Sandıkkaya, M. A., & Bommer, J. J. (2014). Empirical ground-motion models for point- and extended-source crustal earthquake scenarios in Europe and the Middle East. Bulletin of Earthquake Engineering, 12(1), 359-387.',
+    doi: '10.1007/s10518-013-9461-4',
+    tectonic_region: 'active_shallow_crust',
+    component: 'geometric_mean_horizontal',
+    intensity_measure: 'PGA',
+    unit: 'g',
+  },
+  scenario: {
+    epicenter: { latitude: 38.0, longitude: 35.0 },
+    magnitude_mw: 6.5,
+    depth_km: 10.0,
+    mechanism: 'strike_slip',
+    rake_degrees: 0.0,
+    vs30_m_s: 800.0,
+    max_surface_distance_km: 150.0,
+  },
+  model_scope: {
+    af360_magnitude_guard: [4.0, 7.6],
+    max_rhypo_km: 200.0,
+    max_focal_depth_km: 30.0,
+    vs30_m_s: [150.0, 1200.0],
+  },
+  total_sigma_ln: 0.7347136109315354,
+  epicenter_estimate: {
+    surface_distance_km: 0.0,
+    rhypo_km: 10.0,
+    median_pga_g: 0.4273348472,
+    minus_1sigma_pga_g: 0.2049363842,
+    plus_1sigma_pga_g: 0.8911048604,
+  },
+  profile_step_km: 5.0,
+  radial_profile: [
+    {
+      surface_distance_km: 0.0,
+      rhypo_km: 10.0,
+      median_pga_g: 0.4273348472,
+      minus_1sigma_pga_g: 0.2049363842,
+      plus_1sigma_pga_g: 0.8911048604,
+    },
+    {
+      surface_distance_km: 5.0,
+      rhypo_km: 11.18033988749895,
+      median_pga_g: 0.385,
+      minus_1sigma_pga_g: 0.185,
+      plus_1sigma_pga_g: 0.802,
+    },
+  ],
+  disclaimer: 'Bu senaryo simülasyonu, seçilen parametrelere dayalı deterministik yer hareketi tahmin modelidir (Akkar et al., 2014). Deprem tahmini, bina hasarı veya can kaybı riski içermez. Mühendislik hesapları yerine kullanılamaz.',
+}
+
+const parsedScenario = parseScenarioResponse(validScenarioPayload)
+assert.equal(parsedScenario.model.name, 'Akkar et al. (2014) Rhyp Point-Source GMPE')
+assert.equal(parsedScenario.scenario.magnitudeMw, 6.5)
+assert.equal(parsedScenario.scenario.mechanism, 'strike_slip')
+assert.equal(parsedScenario.radialProfile.length, 2)
+assert.equal(parsedScenario.radialProfile[0].surfaceDistanceKm, 0.0)
+assert.equal(parsedScenario.radialProfile[0].medianPgaG, 0.4273348472)
+
+// Malformed rejection
+assert.throws(() => parseScenarioResponse({ ...validScenarioPayload, scenario: { ...validScenarioPayload.scenario, mechanism: 'oblique' } }))
+assert.throws(() => parseScenarioResponse({ ...validScenarioPayload, radial_profile: [] }))
+console.log('PASS: deterministic scenario simulation response schema, radial profile, and rejection of unknown mechanisms/empty profiles')

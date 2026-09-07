@@ -1,20 +1,44 @@
-/** Development input settings, not scientific restrictions or probability estimates. */
+import type { FaultMechanism } from '../types/simulation.ts'
+
+/** Scenario input bounds matching Akkar et al. (2014) and AFET360 calibration guards. */
 export const SIMULATION_INPUTS = {
-  magnitude: { min: 4, max: 8, step: 0.1, default: 6 },
-  depthKm: { min: 1, max: 50, step: 1, default: 20, presets: [5, 10, 20, 30] },
-  radiusKm: { options: [25, 50, 100, 150], default: 50 },
+  magnitude: { min: 4.0, max: 7.6, step: 0.1, default: 6.5 },
+  depthKm: { min: 0.1, max: 30.0, step: 1, default: 10, presets: [5, 10, 20, 30] },
+  radiusKm: { options: [25, 50, 100, 150], default: 150 },
 } as const
+
+export const FAULT_MECHANISMS: readonly {
+  readonly value: FaultMechanism
+  readonly label: string
+  readonly description: string
+}[] = [
+  {
+    value: 'strike_slip',
+    label: 'Doğrultu Atımlı',
+    description: 'Yanal ötelenme hareketi (Örn. Kuzey ve Doğu Anadolu Fayları)',
+  },
+  {
+    value: 'normal',
+    label: 'Normal',
+    description: 'Açılma ve düşey hareket (Örn. Batı Anadolu Grabenleri)',
+  },
+  {
+    value: 'reverse',
+    label: 'Ters / Bindirme',
+    description: 'Sıkışma ve bindirme kuşağı (Örn. Bitlis-Zagros Bindirme Kuşağı)',
+  },
+] as const
+
+export const SCENARIO_VS30_ASSUMPTION_MS = 800.0
+export const SCENARIO_VS30_LABEL = 'Referans kaya varsayımı · Vs30 = 800 m/s'
 
 export const SIMULATION_MAP = {
   center: { lat: 39, lng: 35 },
   zoom: 5,
-  // Fit Turkey on the first render, including narrow viewports. No location is preselected.
+  // Fit Turkey on first render, including narrow viewports. No location is preselected.
   bounds: { west: 25.5, south: 35.5, east: 45, north: 42.5, padding: 24 },
   loadTimeoutMs: 20_000,
 } as const
 
 /** Google's documented development map ID enables AdvancedMarker; it is not an API key. */
 export const DEVELOPMENT_MAP_ID = 'DEMO_MAP_ID'
-
-export const SIMULATION_UNAVAILABLE_MESSAGE =
-  'Simülasyon sonuçları şu anda kullanılamıyor. Senaryo ayarlarınızı bu sayfada hazırlayabilirsiniz.'

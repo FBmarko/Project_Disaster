@@ -755,13 +755,13 @@ def test_synthetic_province_median_calculation(
 
 
 def test_provinces_openapi_specification() -> None:
-    """Verify OpenAPI documentation exposes /provinces route and 16 paths."""
+    """Verify OpenAPI documentation exposes /provinces route and 17 paths."""
     from app.main import app
 
     openapi = app.openapi()
     paths = openapi["paths"]
     assert "/api/v1/earthquake-hazards/provinces" in paths
-    assert len(paths) == 16
+    assert len(paths) == 17
 
     route_info = paths["/api/v1/earthquake-hazards/provinces"]["get"]
     assert "Earthquake Hazards" in route_info["tags"]

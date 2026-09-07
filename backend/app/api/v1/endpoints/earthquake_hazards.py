@@ -12,7 +12,12 @@ from app.schemas.hazard_api import (
     HazardNearestFeature,
     ProvinceHazardResponse,
 )
+from app.schemas.scenario_api import (
+    ScenarioCalculationRequest,
+    ScenarioCalculationResponse,
+)
 from app.services.hazard_query import HazardQueryService
+from app.services.scenario_service import calculate_scenario
 
 router = APIRouter()
 
@@ -128,3 +133,23 @@ def list_hazard_points_in_bbox(
     """List discrete hazard points within a bounding box."""
     service = HazardQueryService(db)
     return service.get_hazard_points_in_bbox(bbox_str=bbox, limit=limit, offset=offset)
+
+
+@router.post(
+    "/scenario",
+    response_model=ScenarioCalculationResponse,
+    summary="Calculate deterministic ground-motion scenario (Akkar et al., 2014)",
+    description=(
+        "Calculate a deterministic user-defined earthquake ground-motion "
+        "scenario using the Akkar, Sandıkkaya & Bommer (2014) point-source model "
+        "(AkkarEtAlRhyp2014). Estimates median Peak Ground Acceleration (PGA in g) "
+        "and aleatory model variability (±1σ) as a function of hypocentral distance. "
+        "Does NOT represent an earthquake prediction, occurrence probability, or "
+        "structural damage assessment."
+    ),
+)
+def compute_ground_motion_scenario(
+    payload: ScenarioCalculationRequest,
+) -> ScenarioCalculationResponse:
+    """Calculate deterministic scenario along a radial distance profile."""
+    return calculate_scenario(payload)

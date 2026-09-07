@@ -1,8 +1,8 @@
 # Earthquake Simulation setup — implementation and validation
 
-Verified 2026-09-03. Scope is limited to `frontend/` and `/simulation`.
+Verified 2026-09-08 for TASK 14B-G (Scientific Ground-Motion Scenario Implementation). Scope is limited to `frontend/` and `/simulation` plus scenario contract client.
 
-## Google Maps architecture
+## Google Maps architecture (Person 2 boundary preserved)
 
 - Package: `@vis.gl/react-google-maps` 1.9.0 (single wrapper library).
 - `SimulationMap` reads only `import.meta.env.VITE_GOOGLE_MAPS_API_KEY`. A blank
@@ -26,96 +26,47 @@ Verified 2026-09-03. Scope is limited to `frontend/` and `/simulation`.
   “Google Maps yüklenemedi.” state with a reload action. Loader errors are not
   logged by application code because external error URLs can contain the key.
 - The Google wrapper is lazy-loaded and isolated from other routes.
+- **Person 2 boundary**: Loader, APIProvider, and fallback error handling remain untouched.
 
-The effective development environment had **no configured Google Maps API key**.
-No key value was read, printed, captured or committed. Consequently, live Google
-base-map rendering, live map clicking, marker placement/movement and provider
-error callbacks could not be exercised. Their production integration was checked
-by TypeScript/build and source inspection. The missing-key path was verified and
-the page contained no `maps.googleapis.com` script.
+## Scientific scenario simulation model & UI (TASK 14B-G)
 
-## Simulation draft and UI
-
-- `SimulationDraft` holds nullable latitude/longitude and numeric magnitude,
-  depth and radius. `SimulationRequestDraft` represents a future payload shape;
-  it is not an API contract and is never transported or persisted.
-- The reducer owns location selection/replacement/clearing, settings changes and
-  the local submit status. Every edit clears stale availability feedback.
-- Pure validation requires finite geographic coordinates, 4.0–8.0 Mw magnitude,
-  1–50 km depth and one of 25/50/100/150 km radii. The current UI supplies
-  5/10/20/30 km depth presets.
-- Full numeric coordinate precision remains in state/payload. `toFixed(4)` is
-  confined to `LocationSummary` display text.
-- Before selection, all controls and “Senaryoyu Hazırla” are disabled and an
-  instruction is visible. A valid action prepares and validates the local payload,
-  then explains that results are unavailable. It performs no navigation, timeout
-  simulation, backend request, calculation or storage.
-- Semantic regions, headings, fieldsets, labels, native inputs/buttons, output,
-  `aria-live`, `aria-invalid`, focus styles and non-color disabled/feedback text
-  provide the accessibility structure. The map region includes an instruction.
+- Ground-Motion Model: Akkar, Sandıkkaya & Bommer (2014) point-source model (`AkkarEtAlRhyp2014`).
+- Published DOI: 10.1007/s10518-013-9461-4.
+- Endpoint: `POST /api/v1/earthquake-hazards/scenario`.
+- Parameters:
+  - Epicenter: Geographic latitude [-90, 90] and longitude [-180, 180].
+  - Moment magnitude ($M_w$): 4.0–7.6 Mw (AFET360 calibration guard, step 0.1).
+  - Focal depth: Backend/model product guard is depth > 0 and <= 30 km; frontend client input sanity bound is 0.1 km (presets: 5, 10, 20, 30 km; 0.1 km is not a published Akkar scientific lower limit).
+  - Fault mechanism: Mandatory selection of `strike_slip` ($0^\circ$), `normal` ($-90^\circ$), or `reverse` ($+90^\circ$). No silent default.
+  - Calculation radius: 25, 50, 100, 150 km (labeled as *Hesaplama Yarıçapı*, not damage/impact radius).
+  - Site condition: Reference rock assumption ($V_{s30} = 800\text{ m/s}$).
+- UI Components:
+  - `SimulationSettingsPanel`: Coordinates scenario parameter input, validation, calculation submission, and result presentation.
+  - `MechanismControl`: Accessible radio group for fault mechanism selection with descriptions.
+  - `ImpactRadiusControl`: Scientific radius selector for radial attenuation profiling.
+  - `ScenarioResultView`: Renders epicentral median PGA estimate, $\pm 1\sigma$ range ($\sigma_{\ln} \approx 0.7347$), 5-km radial attenuation table, model citation, and prominent scientific disclaimer.
+- Scientific Boundaries Enforced:
+  - Answers strictly: "If a user-defined earthquake with these parameters occurred, what median PGA would the selected Akkar et al. (2014) GMPE estimate as a function of distance?"
+  - Not an earthquake prediction or forecast.
+  - Not a building damage, vulnerability, or casualty estimate.
+  - Not combined, blended, or scaled with GSHM v2026.1 hazard data.
+  - No mock or fake results; uses live pure-Python mathematical evaluation.
 
 ## Verification
 
 | Check | Result |
 | --- | --- |
-| `npm run validate:simulation` | PASS — 11 validation/reducer scenarios |
+| `npm run validate:api` | PASS — Faults, earthquakes, OSM, hazard, and scenario response contracts |
+| `npm run validate:simulation` | PASS — 13 validation/reducer/parameter scenarios |
 | `npm run validate:provinces` | PASS — 81/81 provinces |
 | `npm run validate:faults` | PASS — 321 real fault features |
+| `npm run validate:assembly` | PASS — Assembly area contracts |
+| `npm run validate:preparedness` | PASS — Preparedness guide contracts |
+| `npm run validate:theme` | PASS — Theme tokens |
 | `npm run build` | PASS — TypeScript + Vite production build |
 | `npm run lint` | PASS — oxlint |
 
-The offline simulation validator tests initial invalid state, exact precision,
-coordinate bounds/non-finite/type rejection, control boundaries, radius options,
-valid local submit, location replacement, clearing, settings changes
-and malformed map coordinates. It imports the same constants, types, reducer and
-validation helpers as the application and performs no network call.
-
-Local Chromium verification covered:
-
-- `/simulation` loads and reports the missing API-key state without a Google script.
-- Map and settings cards are side by side at 1440 px and stack at 768/390/320 px.
-  No page-level horizontal overflow occurred at those widths.
-- Settings component integration using an isolated local harness: exact test
-  coordinates enabled controls; slider changed to 7.9 Mw; 30 km depth and
-  150 km radius selected; the primary action displayed only the unavailable-results
-  message and stayed on the same URL; Clear removed coordinates, disabled it and cleared
-  stale feedback. The harness did not mount a map or provider.
-- Missing-key and map-error presentation states are readable. Sidebar marks
-  Deprem Simülasyonu as current. No console warning/error was recorded in tested
-  missing-key/component flows.
-- Existing HomePage and FaultLinesPage behavior is unchanged; their source files
-  were not modified and existing validators still pass.
-
-Physical touch hardware and a separate screen-reader application were not used.
-The integration harness was ignored local QA content and removed after testing.
-
-## File inventory
-
-Created:
-
-- `scripts/validate-simulation.ts`
-- `src/types/simulation.ts`
-- `src/constants/simulation.ts`
-- `src/utils/simulationDraft.ts`
-- `src/components/simulation/SimulationMap.tsx`
-- `src/components/simulation/GoogleSimulationMap.tsx`
-- `src/components/simulation/SimulationMapState.tsx`
-- `src/components/simulation/SimulationMapBoundary.tsx`
-- `src/components/simulation/SimulationSettingsPanel.tsx`
-- `src/components/simulation/LocationSummary.tsx`
-- `src/components/simulation/MagnitudeControl.tsx`
-- `src/components/simulation/DepthControl.tsx`
-- `src/components/simulation/ImpactRadiusControl.tsx`
-- `docs/simulation-validation.md`
-
-Modified:
-
-- `.env.example`
-- `README.md`
-- `package.json`
-- `package-lock.json`
-- `src/pages/SimulationPage.tsx`
-- `src/vite-env.d.ts`
-
-All paths are relative to `frontend/`. No backend or existing completed-page file
-was modified.
+The offline simulation validator tests initial invalid state, mandatory mechanism requirement, exact coordinate precision,
+coordinate bounds/non-finite/type rejection, magnitude bounds (4.0–7.6), radius options,
+valid local submit / loading lifecycle, location replacement, clearing, settings changes,
+and error handling.

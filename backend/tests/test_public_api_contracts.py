@@ -19,7 +19,7 @@ from tests.fakes.ai import StubPreparednessAIProvider
 
 client = TestClient(app)
 
-EXPECTED_16_PATHS = {
+EXPECTED_17_PATHS = {
     "/api/v1/health",
     "/api/v1/fault-lines",
     "/api/v1/fault-lines/nearby",
@@ -32,6 +32,7 @@ EXPECTED_16_PATHS = {
     "/api/v1/earthquake-hazards/nearest",
     "/api/v1/earthquake-hazards",
     "/api/v1/earthquake-hazards/provinces",
+    "/api/v1/earthquake-hazards/scenario",
     "/api/v1/assembly-areas/dataset",
     "/api/v1/assembly-areas/nearby",
     "/api/v1/assembly-areas",
@@ -51,6 +52,7 @@ EXPECTED_METHODS = {
     "/api/v1/earthquake-hazards/nearest": {"get"},
     "/api/v1/earthquake-hazards": {"get"},
     "/api/v1/earthquake-hazards/provinces": {"get"},
+    "/api/v1/earthquake-hazards/scenario": {"post"},
     "/api/v1/assembly-areas/dataset": {"get"},
     "/api/v1/assembly-areas/nearby": {"get"},
     "/api/v1/assembly-areas": {"get"},
@@ -79,13 +81,13 @@ DATABASE_TABLES = [
 # ==============================================================================
 
 
-def test_openapi_exact_16_paths_and_allowed_methods() -> None:
-    """Verify OpenAPI specification exposes exactly the approved 16 paths."""
+def test_openapi_exact_17_paths_and_allowed_methods() -> None:
+    """Verify OpenAPI specification exposes exactly the approved 17 paths."""
     schema = app.openapi()
     paths = schema["paths"]
 
-    assert len(paths) == 16, f"Expected 16 paths in OpenAPI, found {len(paths)}"
-    assert set(paths.keys()) == EXPECTED_16_PATHS
+    assert len(paths) == 17, f"Expected 17 paths in OpenAPI, found {len(paths)}"
+    assert set(paths.keys()) == EXPECTED_17_PATHS
 
     for path, expected_method_set in EXPECTED_METHODS.items():
         actual_methods = set(paths[path].keys()) - {"options", "head", "parameters"}

@@ -1,10 +1,10 @@
-import { SIMULATION_INPUTS } from '../constants/simulation.ts'
+import { SCENARIO_VS30_ASSUMPTION_MS, SIMULATION_INPUTS } from '../constants/simulation.ts'
 import type {
   SimulationAction,
   SimulationDraft,
   SimulationErrors,
   SimulationLocation,
-  SimulationRequestDraft,
+  SimulationRequestPayload,
   SimulationSetupState,
 } from '../types/simulation.ts'
 
@@ -29,24 +29,31 @@ export function validateSimulationDraft(draft: SimulationDraft): SimulationError
     errors.depthKm = `Derinlik ${depthKm.min}–${depthKm.max} km aralığında olmalıdır.`
   }
   if (!radiusKm.options.some((value) => value === draft.radiusKm)) {
-    errors.radiusKm = 'Listeden geçerli bir etki alanı seçin.'
+    errors.radiusKm = 'Listeden geçerli bir hesaplama yarıçapı seçin.'
+  }
+  if (!draft.mechanism || !['strike_slip', 'normal', 'reverse'].includes(draft.mechanism)) {
+    errors.mechanism = 'Lütfen geçerli bir fay mekanizması seçin.'
   }
   return errors
 }
 
 export function prepareSimulationRequest(draft: SimulationDraft):
-  | { ok: true; payload: SimulationRequestDraft }
+  | { ok: true; payload: SimulationRequestPayload }
   | { ok: false; errors: SimulationErrors } {
   const errors = validateSimulationDraft(draft)
   const location = selectedSimulationLocation(draft)
-  if (!location || Object.keys(errors).length) return { ok: false, errors }
-  // Full precision, no scientific calculations, network calls or persistence.
-  return { ok: true, payload: {
-    ...location,
-    magnitude: draft.magnitude,
-    depthKm: draft.depthKm,
-    radiusKm: draft.radiusKm,
-  } }
+  if (!location || !draft.mechanism || Object.keys(errors).length > 0) return { ok: false, errors }
+  return {
+    ok: true,
+    payload: {
+      ...location,
+      magnitude: draft.magnitude,
+      depthKm: draft.depthKm,
+      radiusKm: draft.radiusKm,
+      mechanism: draft.mechanism,
+      vs30MS: SCENARIO_VS30_ASSUMPTION_MS,
+    },
+  }
 }
 
 export function createSimulationSetup(): SimulationSetupState {
@@ -57,23 +64,63 @@ export function createSimulationSetup(): SimulationSetupState {
       magnitude: SIMULATION_INPUTS.magnitude.default,
       depthKm: SIMULATION_INPUTS.depthKm.default,
       radiusKm: SIMULATION_INPUTS.radiusKm.default,
+      mechanism: null,
     },
     status: 'editing',
+    result: null,
+    error: null,
   }
 }
 
-/** Local setup lifecycle only; a valid submit never claims a simulation completed. */
+/** Local setup lifecycle and scenario calculation status management. */
 export function simulationSetupReducer(state: SimulationSetupState, action: SimulationAction): SimulationSetupState {
   switch (action.type) {
     case 'select-location': {
       const draft = { ...state.draft, ...action.location }
-      return selectedSimulationLocation(draft) ? { draft, status: 'editing' } : state
+      return selectedSimulationLocation(draft)
+        ? { ...state, draft, status: 'editing', error: null }
+        : state
     }
     case 'clear-location':
-      return { draft: { ...state.draft, latitude: null, longitude: null }, status: 'editing' }
+      return {
+        ...state,
+        draft: { ...state.draft, latitude: null, longitude: null },
+        status: 'editing',
+        error: null,
+      }
     case 'set-parameter':
-      return { draft: { ...state.draft, [action.field]: action.value }, status: 'editing' }
+      return {
+        ...state,
+        draft: { ...state.draft, [action.field]: action.value },
+        status: 'editing',
+        error: null,
+      }
+    case 'set-mechanism':
+      return {
+        ...state,
+        draft: { ...state.draft, mechanism: action.mechanism },
+        status: 'editing',
+        error: null,
+      }
     case 'submit':
-      return { ...state, status: prepareSimulationRequest(state.draft).ok ? 'backend-pending' : 'editing' }
+    case 'start-submit':
+      return {
+        ...state,
+        status: prepareSimulationRequest(state.draft).ok ? 'loading' : 'editing',
+        error: null,
+      }
+    case 'calculation-success':
+      return {
+        ...state,
+        status: 'success',
+        result: action.result,
+        error: null,
+      }
+    case 'calculation-error':
+      return {
+        ...state,
+        status: 'error',
+        error: action.error,
+      }
   }
 }
