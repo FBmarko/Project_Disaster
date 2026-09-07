@@ -795,11 +795,11 @@ def test_no_database_writes_or_persistence_on_request() -> None:
 # ==============================================================================
 
 
-def test_openapi_schema_contains_exactly_15_paths() -> None:
-    """Verify OpenAPI path count is exactly 15 and AI endpoint is registered."""
+def test_openapi_schema_contains_exactly_16_paths() -> None:
+    """Verify OpenAPI path count is exactly 16 and AI endpoint is registered."""
     openapi = app.openapi()
     paths = openapi["paths"]
-    assert len(paths) == 15
+    assert len(paths) == 16
 
     ai_path = paths.get("/api/v1/ai/preparedness-guide")
     assert ai_path is not None

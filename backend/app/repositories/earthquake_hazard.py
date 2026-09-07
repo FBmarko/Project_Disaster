@@ -257,3 +257,93 @@ class EarthquakeHazardRepository:
         has_more = len(rows) > limit
         result_rows = [dict(r) for r in rows[:limit]]
         return result_rows, has_more
+
+    def aggregate_provinces_hazard(
+        self,
+        dataset_id: uuid.UUID,
+        provinces: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Spatially aggregate hazard grid points per province using PostGIS ST_Covers.
+
+        Calculates sample_count, min_pga_g, median_pga_g (via percentile_cont(0.5)),
+        and max_pga_g for each province boundary polygon.
+
+        Args:
+            dataset_id: Active HazardDataset UUID
+            provinces: List of province dicts with keys:
+                'plate_code', 'province_id', 'province_name', 'geojson'
+
+        Returns:
+            List of aggregated dicts sorted by plate_code ascending (1..81):
+            [
+                {
+                    "province_id": "01",
+                    "plate_code": 1,
+                    "province_name": "Adana",
+                    "sample_count": 399,
+                    "min_pga_g": 0.1455...,
+                    "median_pga_g": 0.1950...,
+                    "max_pga_g": 0.3296...,
+                },
+                ...
+            ]
+        """
+        conn = self.session.connection()
+        conn.execute(
+            text(
+                "CREATE TEMP TABLE IF NOT EXISTS temp_provinces_agg ("
+                "  plate_code int PRIMARY KEY, "
+                "  province_id text NOT NULL, "
+                "  name text NOT NULL, "
+                "  geom geometry(Geometry, 4326) NOT NULL"
+                ") ON COMMIT DROP;"
+            )
+        )
+        existing_count = conn.execute(
+            text("SELECT count(*) FROM temp_provinces_agg;")
+        ).scalar()
+        if not existing_count:
+            params = [
+                {
+                    "plate_code": p["plate_code"],
+                    "province_id": p["province_id"],
+                    "name": p["province_name"],
+                    "geojson": p["geojson"],
+                }
+                for p in provinces
+            ]
+            insert_sql = (
+                "INSERT INTO temp_provinces_agg (plate_code, province_id, name, geom) "
+                "VALUES ("
+                ":plate_code, :province_id, :name, "
+                "ST_SetSRID(ST_GeomFromGeoJSON(:geojson), 4326)"
+                ");"
+            )
+            conn.execute(text(insert_sql), params)
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_temp_provinces_agg_geom "
+                    "ON temp_provinces_agg USING gist (geom);"
+                )
+            )
+
+        agg_sql = text("""
+            SELECT
+                p.plate_code,
+                p.province_id,
+                p.name AS province_name,
+                count(hp.id)::int AS sample_count,
+                min(hp.pga_g)::float AS min_pga_g,
+                percentile_cont(0.5) WITHIN GROUP (
+                    ORDER BY hp.pga_g
+                )::float AS median_pga_g,
+                max(hp.pga_g)::float AS max_pga_g
+            FROM temp_provinces_agg p
+            LEFT JOIN earthquake_hazard_points hp
+                ON ST_Covers(p.geom, hp.geometry)
+               AND hp.dataset_id = :dataset_id
+            GROUP BY p.plate_code, p.province_id, p.name
+            ORDER BY p.plate_code ASC;
+        """)
+        rows = conn.execute(agg_sql, {"dataset_id": dataset_id}).mappings().all()
+        return [dict(r) for r in rows]

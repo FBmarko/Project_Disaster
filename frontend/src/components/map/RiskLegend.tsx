@@ -1,52 +1,62 @@
-import { RISK_COLORS } from '@/constants/colors'
-import { RISK_LEVEL_LABELS, RISK_LEVEL_ORDER } from '@/types/risk'
-import type { RiskLevel } from '@/types/risk'
+﻿import { getHazardGradientCss } from '@/utils/hazardColors'
 
-/**
- * Qualitative wording shown under each legend entry. Deliberately descriptive
- * rather than numeric — the frontend must not present figures as measured risk.
- */
-const RISK_LEVEL_DESCRIPTIONS: Record<RiskLevel, string> = {
-  LOW: 'Deprem etkisi düşük seviyededir. Risk azdır.',
-  MEDIUM: 'Deprem etkisi orta seviyededir. Dikkatli olunmalıdır.',
-  HIGH: 'Deprem etkisi yüksek seviyededir. Risk fazladır.',
+type RiskLegendProps = {
+  readonly minPga?: number | null
+  readonly maxPga?: number | null
 }
 
-/** Risk colour key shown beneath the map. */
-export function RiskLegend() {
+/**
+ * Continuous numeric legend displaying the Peak Ground Acceleration (PGA in g) scale.
+ *
+ * Renders a continuous horizontal color gradient bar between the dataset minimum
+ * and maximum median PGA values. Uses neutral numeric descriptors without
+ * categorical risk binning or safety labels.
+ */
+export function RiskLegend({ minPga, maxPga }: RiskLegendProps) {
+  const hasRange =
+    minPga !== null &&
+    minPga !== undefined &&
+    maxPga !== null &&
+    maxPga !== undefined &&
+    Number.isFinite(minPga) &&
+    Number.isFinite(maxPga)
+
+  const minLabel = hasRange ? `${minPga.toFixed(3)} g` : '— g'
+  const maxLabel = hasRange ? `${maxPga.toFixed(3)} g` : '— g'
+
   return (
     <div className="rounded-2xl border border-border-subtle/70 bg-surface/60 p-4 sm:p-5">
-      <h2 className="sr-only">Risk seviyesi açıklamaları</h2>
+      <div className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-text-primary">
+            Deprem Tehlikesi — Medyan PGA
+          </span>
+          <span className="text-xs text-text-muted">
+            475 yıllık dönüş periyodu (Vs30 = 800 m/s)
+          </span>
+        </div>
 
-      <ul className="grid gap-4 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-border-subtle">
-        {RISK_LEVEL_ORDER.map((level) => (
-          <li
-            key={level}
-            className="flex flex-col gap-3 sm:px-5 lg:px-7"
-          >
-            <div className="flex items-center gap-3">
-              <span
-                aria-hidden="true"
-                className="h-5 w-5 shrink-0 rounded-full"
-                style={{ backgroundColor: RISK_COLORS[level] }}
-              />
-              <span className="text-[15px] font-semibold text-text-primary">
-                {RISK_LEVEL_LABELS[level]}
-              </span>
-            </div>
+        {/* Continuous gradient spectrum bar */}
+        <div
+          aria-hidden="true"
+          className="h-3.5 w-full rounded-full border border-border-subtle/40 shadow-inner"
+          style={{ background: getHazardGradientCss() }}
+        />
 
-            <p className="text-sm leading-relaxed text-text-secondary">
-              {RISK_LEVEL_DESCRIPTIONS[level]}
-            </p>
-
-            <span
-              aria-hidden="true"
-              className="mt-auto h-[3px] w-full rounded-full opacity-60"
-              style={{ backgroundColor: RISK_COLORS[level] }}
-            />
-          </li>
-        ))}
-      </ul>
+        {/* Numeric endpoints */}
+        <div className="flex items-center justify-between text-xs text-text-secondary">
+          <div className="flex items-center gap-1.5">
+            <span className="text-text-muted">Daha düşük PGA:</span>
+            <span className="font-semibold text-text-primary">{minLabel}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-text-muted">Daha yüksek PGA:</span>
+            <span className="font-semibold text-text-primary">{maxLabel}</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
+
+export const HazardLegend = RiskLegend

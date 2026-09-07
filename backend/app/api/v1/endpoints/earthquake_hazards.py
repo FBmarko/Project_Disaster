@@ -10,6 +10,7 @@ from app.schemas.hazard_api import (
     HazardDatasetMetadataResponse,
     HazardFeatureCollection,
     HazardNearestFeature,
+    ProvinceHazardResponse,
 )
 from app.services.hazard_query import HazardQueryService
 
@@ -32,6 +33,26 @@ def get_hazard_dataset_metadata(
     """Return active seismic hazard dataset metadata."""
     service = HazardQueryService(db)
     return service.get_dataset_metadata()
+
+
+@router.get(
+    "/provinces",
+    response_model=ProvinceHazardResponse,
+    summary="Get province-level seismic hazard summaries",
+    description=(
+        "Retrieve spatial statistical summaries (median, minimum, maximum PGA in g "
+        "and grid node sample counts) aggregated across official Turkish province "
+        "administrative boundaries from the active GEM GSHM v2026.1 dataset (475-year "
+        "return period, Vs30 = 800 m/s reference rock). Not building safety risk or "
+        "official regulatory zoning."
+    ),
+)
+def get_province_hazard_summaries(
+    db: Annotated[Session, Depends(get_db)],
+) -> ProvinceHazardResponse:
+    """Return province-level seismic hazard statistics."""
+    service = HazardQueryService(db)
+    return service.get_province_hazards()
 
 
 @router.get(

@@ -219,3 +219,121 @@ class HazardFeatureCollection(BaseModel):
     type: Literal["FeatureCollection"] = "FeatureCollection"
     features: list[HazardPointFeature] = Field(default_factory=list)
     metadata: HazardFeatureCollectionMetadata
+
+
+# Centralized Province Hazard Disclaimers and Boundary Provenance
+DEFAULT_PROVINCE_HAZARD_DISCLAIMER = (
+    "Bu gösterim GEM GSHM v2026.1 referans-kaya PGA verisinin il bazında "
+    "mekânsal özetidir. Yerel zemin ve bina özelliklerini içermez ve risk "
+    "değerlendirmesi değildir. Resmî değerlendirme ve tasarım kararlarında "
+    "AFAD ve yürürlükteki TBDY kaynakları esas alınmalıdır."
+)
+DEFAULT_PROVINCE_BOUNDARY_SOURCE = "alpers/Turkey-Maps-GeoJSON (Apache-2.0)"
+DEFAULT_SUMMARY_METHOD = "province_grid_median"
+
+
+class ProvinceHazardSummary(BaseModel):
+    """Aggregated seismic hazard statistics for a single province."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    province_id: str = Field(
+        ...,
+        description="Two-digit official plate code string (01..81)",
+        pattern=r"^\d{2}$",
+    )
+    plate_code: int = Field(
+        ...,
+        description="Official numeric plate number (1..81)",
+        ge=1,
+        le=81,
+    )
+    province_name: str = Field(
+        ...,
+        description="Canonical Turkish province name",
+    )
+    sample_count: int = Field(
+        ...,
+        description="Number of GEM GSHM grid nodes spatially within province boundary",
+        ge=0,
+    )
+    median_pga_g: float | None = Field(
+        None,
+        description="50th percentile (median) modeled PGA in g",
+        ge=0.0,
+    )
+    min_pga_g: float | None = Field(
+        None,
+        description="Minimum modeled PGA in g across province grid points",
+        ge=0.0,
+    )
+    max_pga_g: float | None = Field(
+        None,
+        description="Maximum modeled PGA in g across province grid points",
+        ge=0.0,
+    )
+
+
+class ProvinceHazardDatasetMetadata(BaseModel):
+    """Metadata block describing the active GEM seismic hazard dataset."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(..., description="Dataset provider identifier (e.g. GEM_GSHM)")
+    source_version: str = Field(
+        ..., description="Dataset release version (e.g. 2026.1)"
+    )
+    model_name: str = Field(..., description="Full descriptive model title")
+    version_doi: str = Field(..., description="Version-specific Zenodo DOI")
+    license: str = Field(..., description="Dataset license (CC BY-NC-SA 4.0)")
+    attribution: str = Field(..., description="Official citation and attribution")
+
+
+class ProvinceHazardMetricMetadata(BaseModel):
+    """Scientific definition of the aggregated ground motion metric."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(default="PGA", description="Ground motion parameter name")
+    unit: str = Field(default="g", description="Physical unit of measurement")
+    return_period_years: int = Field(
+        default=475, description="Nominal return period in years"
+    )
+    exceedance_probability: float = Field(
+        default=0.10, description="Exceedance probability within time horizon"
+    )
+    time_horizon_years: int = Field(default=50, description="Time horizon in years")
+    reference_vs30_mps: float = Field(
+        default=800.0, description="Reference shear-wave velocity in m/s (rock)"
+    )
+    reference_ground: str = Field(
+        default="rock", description="Reference ground classification"
+    )
+
+
+class ProvinceHazardResponse(BaseModel):
+    """Top-level response envelope for province-level seismic hazard summaries."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    dataset: ProvinceHazardDatasetMetadata = Field(
+        ..., description="Active hazard dataset metadata"
+    )
+    metric: ProvinceHazardMetricMetadata = Field(
+        ..., description="Hazard metric scientific parameters"
+    )
+    summary_method: str = Field(
+        default=DEFAULT_SUMMARY_METHOD,
+        description="Spatial aggregation method applied across province grid points",
+    )
+    provinces: list[ProvinceHazardSummary] = Field(
+        ..., description="Per-province hazard summaries sorted by plate code (1..81)"
+    )
+    boundary_source: str = Field(
+        default=DEFAULT_PROVINCE_BOUNDARY_SOURCE,
+        description="Source of province administrative boundary polygons",
+    )
+    disclaimer: str = Field(
+        default=DEFAULT_PROVINCE_HAZARD_DISCLAIMER,
+        description="Scientific non-risk and non-officiality disclaimer",
+    )

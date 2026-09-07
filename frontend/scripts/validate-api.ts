@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import { parseFaultCollection } from '../src/api/faults.ts'
 import { parseFaultEarthquakes } from '../src/api/earthquakes.ts'
 import { parseAssemblyCollection } from '../src/api/assemblyAreas.ts'
+import { parseProvinceHazards } from '../src/api/hazard.ts'
 import { ApiError, resolveApiUrl } from '../src/api/client.ts'
 import { assemblyDirectionsUrl } from '../src/utils/assemblyAreas.ts'
+import { TURKEY_PROVINCES } from '../src/constants/provinces.ts'
 
 // Synthetic contract fixtures only. Never imported into application code or a database.
 const id = '00000000-0000-0000-0000-000000000001'
@@ -62,6 +64,65 @@ assert.throws(() => parseAssemblyCollection({ ...assembly, features: [{ ...point
 assert.throws(() => parseAssemblyCollection({ ...assembly, features: [{ ...polygon, geometry: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [0, 1], [2, 2]]] } }] }))
 assert.equal(parseAssemblyCollection({ ...assembly, features: [], metadata: { ...assembly.metadata, returned_count: 0 } }).areas.length, 0)
 console.log('PASS: Point/Polygon preservation, no invented entrances/addresses, metadata, empty records and malformed geometry rejection')
+
+const syntheticProvinces = TURKEY_PROVINCES.map((provinceName, index) => {
+  const plate = index + 1
+  const provinceId = plate.toString().padStart(2, '0')
+  return {
+    province_id: provinceId,
+    plate_code: plate,
+    province_name: provinceName,
+    sample_count: 50,
+    min_pga_g: 0.1,
+    median_pga_g: 0.2 + (plate / 1000),
+    max_pga_g: 0.5,
+  }
+})
+
+const hazardPayload = {
+  dataset: {
+    source: 'GEM_GSHM',
+    source_version: '2026.1',
+    model_name: 'Global Seismic Hazard Map',
+    version_doi: '10.5281/zenodo.20735384',
+    license: 'CC BY-NC-SA 4.0',
+    attribution: 'Global Earthquake Model Foundation',
+  },
+  metric: {
+    name: 'PGA',
+    unit: 'g',
+    return_period_years: 475,
+    exceedance_probability: 0.1,
+    time_horizon_years: 50,
+    reference_vs30_mps: 800,
+    reference_ground: 'Reference Rock',
+  },
+  summary_method: 'province_grid_median',
+  provinces: syntheticProvinces,
+  boundary_source: 'alpers/Turkey-Maps-GeoJSON (Apache-2.0)',
+  disclaimer: 'Bu gösterim GEM GSHM v2026.1 verisidir.',
+}
+
+const parsedHazards = parseProvinceHazards(hazardPayload)
+assert.equal(parsedHazards.provinces.length, 81)
+assert.equal(parsedHazards.provincesByName['Adana'].plateCode, 1)
+assert.equal(parsedHazards.provincesByName['Düzce'].plateCode, 81)
+assert.equal(Number.isFinite(parsedHazards.minMedianPga), true)
+assert.equal(Number.isFinite(parsedHazards.maxMedianPga), true)
+assert.equal(parsedHazards.minMedianPga <= parsedHazards.maxMedianPga, true)
+
+// Rejections
+assert.throws(() => parseProvinceHazards({ ...hazardPayload, provinces: syntheticProvinces.slice(0, 80) }))
+assert.throws(() => parseProvinceHazards({ ...hazardPayload, provinces: [...syntheticProvinces, syntheticProvinces[0]] }))
+assert.throws(() => parseProvinceHazards({
+  ...hazardPayload,
+  provinces: [{ ...syntheticProvinces[0], min_pga_g: 0.9, median_pga_g: 0.2 }, ...syntheticProvinces.slice(1)],
+}))
+assert.throws(() => parseProvinceHazards({
+  ...hazardPayload,
+  provinces: [{ ...syntheticProvinces[0], max_pga_g: 0.1, median_pga_g: 0.2 }, ...syntheticProvinces.slice(1)],
+}))
+console.log('PASS: province hazard API contract, 81 unique provinces, min/median/max invariants, and malformed rejection')
 
 // Unit tests for API URL resolution and error handling
 // CASE A: VITE_API_BASE_URL absent or blank -> relative path

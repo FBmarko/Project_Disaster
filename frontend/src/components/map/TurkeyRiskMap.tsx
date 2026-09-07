@@ -1,120 +1,127 @@
-import { useCallback, useRef, useState } from 'react'
+﻿import { useCallback, useRef, useState } from 'react'
 import { ProvinceTooltip } from '@/components/map/ProvinceTooltip'
 import { TURKEY_MAP } from '@/components/map/turkeyMapGeometry'
 import type { ProvincePath } from '@/components/map/turkeyMapGeometry'
-import { RISK_COLORS } from '@/constants/colors'
-import { RISK_LEVEL_LABELS } from '@/types/risk'
-import type { ProvinceRiskMap, RiskLevel } from '@/types/risk'
+import type { ProvinceHazardCollection, ProvinceHazardItem } from '@/types/hazard'
+import { HAZARD_NEUTRAL_FILL, pgaToContinuousColor } from '@/utils/hazardColors'
 
 type TurkeyRiskMapProps = {
-  /** Province → risk lookup. Missing provinces stay neutral. */
-  riskByProvince: ProvinceRiskMap
+  /** Aggregated province hazard collection from GEM GSHM v2026.1 dataset. */
+  readonly hazards?: ProvinceHazardCollection | null
+  readonly isLoading?: boolean
 }
 
 type ActiveProvince = {
-  province: ProvincePath
-  level: RiskLevel | null
-  /** Tooltip anchor, in pixels relative to the map container. */
-  x: number
-  y: number
-  containerWidth: number
-  containerHeight: number
+  readonly province: ProvincePath
+  readonly hazard: ProvinceHazardItem | null
+  readonly x: number
+  readonly y: number
+  readonly containerWidth: number
+  readonly containerHeight: number
 }
 
-/** Provinces are near-white until hovered, as in the design reference. */
-const NEUTRAL_FILL = 'var(--color-map-land)'
-const BORDER_COLOR = 'var(--color-map-border)'
+const BORDER_COLOR = 'var(--color-map-border, #CBD5E1)'
+const ACTIVE_BORDER_COLOR = '#0F172A'
 
 /**
- * Interactive province map of Turkey.
+ * Interactive province map of Turkey displaying continuous PGA hazard data.
  *
- * Boundaries come from the bundled GeoJSON, pre-projected into SVG path data at
- * module load (`turkeyMapGeometry`). The SVG is sized by its viewBox, so it scales
- * to any container width without distortion and without re-projecting.
- *
- * Every province is its own `<path>`: hoverable, focusable, and independently
- * coloured. Only the active province takes a risk colour; the rest stay neutral.
+ * Each province is rendered as an SVG path filled according to its spatial
+ * median PGA value interpolated continuously between minimum and maximum dataset
+ * bounds. Hovering or focusing displays detailed numeric metrics in a tooltip.
  */
-export function TurkeyRiskMap({ riskByProvince }: TurkeyRiskMapProps) {
+export function TurkeyRiskMap({ hazards, isLoading }: TurkeyRiskMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState<ActiveProvince | null>(null)
 
   const clear = useCallback(() => setActive(null), [])
 
-  /** Anchor from a pointer event, in container-relative pixels. */
   const activateAtPointer = useCallback(
     (province: ProvincePath, clientX: number, clientY: number) => {
       const rect = containerRef.current?.getBoundingClientRect()
       if (!rect) return
 
+      const hazard = hazards?.provincesByName[province.name] ?? null
+
       setActive({
         province,
-        level: riskByProvince[province.name] ?? null,
+        hazard,
         x: clientX - rect.left,
         y: clientY - rect.top,
         containerWidth: rect.width,
         containerHeight: rect.height,
       })
     },
-    [riskByProvince],
+    [hazards],
   )
 
-  /**
-   * Keyboard equivalent: anchor the tooltip at the province's centre. The SVG fills
-   * the container width, so viewBox units convert with a single uniform scale.
-   */
   const activateAtCenter = useCallback(
     (province: ProvincePath) => {
       const rect = containerRef.current?.getBoundingClientRect()
       if (!rect) return
 
       const scale = rect.width / TURKEY_MAP.width
+      const hazard = hazards?.provincesByName[province.name] ?? null
 
       setActive({
         province,
-        level: riskByProvince[province.name] ?? null,
+        hazard,
         x: province.center.x * scale,
         y: province.center.y * scale,
         containerWidth: rect.width,
         containerHeight: rect.height,
       })
     },
-    [riskByProvince],
+    [hazards],
   )
 
   return (
     <div ref={containerRef} className="relative w-full" onPointerLeave={clear}>
       <p className="sr-only">
-        Türkiye il haritası. Bir ilin üzerine gelin veya klavyeyle odaklanın; ilin
-        risk seviyesi renklenir ve adı ile risk düzeyi gösterilir.
+        Türkiye il deprem tehlike haritası. Bir ilin üzerine gelin veya klavyeyle
+        odaklanın; ilin medyan PGA değeri ve tehlike aralığı gösterilir.
       </p>
 
       <svg
         viewBox={TURKEY_MAP.viewBox}
-        className="block h-auto w-full"
+        className={`block h-auto w-full transition-opacity duration-200 ${
+          isLoading ? 'opacity-60' : 'opacity-100'
+        }`}
         role="group"
-        aria-label="Türkiye il bazlı deprem risk haritası"
+        aria-label="Türkiye il bazlı deprem tehlike haritası"
       >
         <g onPointerLeave={clear}>
           {TURKEY_MAP.provinces.map((province) => {
-            const level = riskByProvince[province.name] ?? null
+            const item = hazards?.provincesByName[province.name] ?? null
             const isActive = active?.province.name === province.name
+
+            const fillColor =
+              item && item.medianPgaG !== null && hazards
+                ? pgaToContinuousColor(
+                    item.medianPgaG,
+                    hazards.minMedianPga,
+                    hazards.maxMedianPga,
+                  )
+                : HAZARD_NEUTRAL_FILL
+
+            const label =
+              item && item.medianPgaG !== null
+                ? `${province.name}: ${item.medianPgaG.toFixed(3)} g medyan PGA`
+                : `${province.name}: Tehlike verisi yok`
 
             return (
               <path
                 key={province.name}
                 d={province.d}
                 fillRule="evenodd"
-                fill={isActive && level ? RISK_COLORS[level] : NEUTRAL_FILL}
-                stroke={BORDER_COLOR}
-                strokeWidth={1}
+                fill={fillColor}
+                stroke={isActive ? ACTIVE_BORDER_COLOR : BORDER_COLOR}
+                strokeWidth={isActive ? 1.75 : 0.75}
                 vectorEffect="non-scaling-stroke"
                 tabIndex={0}
                 role="img"
-                aria-label={`${province.name}: ${
-                  level ? RISK_LEVEL_LABELS[level] : 'Risk verisi yok'
-                }`}
-                className="cursor-pointer transition-colors duration-150"
+                aria-label={label}
+                className="cursor-pointer transition-all duration-150 hover:brightness-105"
                 onPointerEnter={(event) =>
                   activateAtPointer(province, event.clientX, event.clientY)
                 }
@@ -132,7 +139,7 @@ export function TurkeyRiskMap({ riskByProvince }: TurkeyRiskMapProps) {
       {active ? (
         <ProvinceTooltip
           province={active.province.name}
-          level={active.level}
+          hazard={active.hazard}
           placement={{ x: active.x, y: active.y }}
           containerWidth={active.containerWidth}
           containerHeight={active.containerHeight}
@@ -141,3 +148,5 @@ export function TurkeyRiskMap({ riskByProvince }: TurkeyRiskMapProps) {
     </div>
   )
 }
+
+export const TurkeyHazardMap = TurkeyRiskMap

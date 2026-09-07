@@ -435,6 +435,13 @@ def test_missing_dataset_service_unavailable() -> None:
         assert resp_bb.json()["detail"] == (
             "Earthquake hazard dataset is currently unavailable."
         )
+
+        # 4. Province hazard endpoint
+        resp_pv = client.get("/api/v1/earthquake-hazards/provinces")
+        assert resp_pv.status_code == 503
+        assert resp_pv.json()["detail"] == (
+            "Earthquake hazard dataset is currently unavailable."
+        )
     finally:
         app.dependency_overrides.clear()
 
@@ -553,3 +560,209 @@ def test_nearest_hazard_query_plan_uses_gist_index(
     ).fetchall()
     plan_text = " ".join(r[0] for r in rows)
     assert "idx_earthquake_hazard_points_geometry" in plan_text
+
+
+def test_get_province_hazards_endpoint_contract() -> None:
+    """Verify GET /api/v1/earthquake-hazards/provinces returns 81 valid summaries."""
+    response = client.get("/api/v1/earthquake-hazards/provinces")
+    assert response.status_code == 200
+    data = response.json()
+
+    # 1. Dataset metadata
+    ds = data["dataset"]
+    assert ds["source"] == "GEM_GSHM"
+    assert ds["source_version"] == "2026.1"
+    assert "Global Seismic Hazard Map" in ds["model_name"]
+    assert ds["license"] == "CC BY-NC-SA 4.0"
+    assert "Global Earthquake Model" in ds["attribution"]
+
+    # 2. Metric metadata
+    metric = data["metric"]
+    assert metric["name"] == "PGA"
+    assert metric["unit"] == "g"
+    assert metric["return_period_years"] == 475
+    assert math.isclose(metric["exceedance_probability"], 0.10, abs_tol=1e-6)
+    assert metric["time_horizon_years"] == 50
+    assert math.isclose(metric["reference_vs30_mps"], 800.0, abs_tol=1e-6)
+
+    # 3. Summary method and provenance
+    assert data["summary_method"] == "province_grid_median"
+    assert "alpers/Turkey-Maps-GeoJSON" in data["boundary_source"]
+    assert "Apache-2.0" in data["boundary_source"]
+    assert "TBDY" in data["disclaimer"]
+    assert "AFAD" in data["disclaimer"]
+
+    # 4. Province summaries
+    provinces = data["provinces"]
+    assert len(provinces) == 81
+
+    seen_ids: set[str] = set()
+    seen_plates: set[int] = set()
+    seen_names: set[str] = set()
+
+    for idx, p in enumerate(provinces, start=1):
+        # Strict plate-order sorting
+        assert p["plate_code"] == idx
+        assert p["province_id"] == f"{idx:02d}"
+
+        # Uniqueness
+        assert p["province_id"] not in seen_ids
+        assert p["plate_code"] not in seen_plates
+        assert p["province_name"] not in seen_names
+        seen_ids.add(p["province_id"])
+        seen_plates.add(p["plate_code"])
+        seen_names.add(p["province_name"])
+
+        # Numerical invariants
+        assert p["sample_count"] > 0
+        assert p["min_pga_g"] is not None
+        assert p["median_pga_g"] is not None
+        assert p["max_pga_g"] is not None
+        assert p["min_pga_g"] <= p["median_pga_g"] <= p["max_pga_g"]
+        assert p["min_pga_g"] >= 0.0
+
+        # No categorical risk fields allowed
+        for forbidden in ("risk", "risk_level", "level", "category", "risk_score"):
+            assert forbidden not in p, (
+                f"Forbidden field '{forbidden}' found in province summary"
+            )
+
+
+def test_province_boundary_resource_loading() -> None:
+    """Verify get_turkey_province_features loads all 81 valid boundaries."""
+    import json
+
+    from app.resources.provinces import get_turkey_province_features
+
+    features = get_turkey_province_features()
+    assert len(features) == 81
+
+    for idx, feat in enumerate(features, start=1):
+        assert feat["plate_code"] == idx
+        assert feat["province_id"] == f"{idx:02d}"
+        assert isinstance(feat["province_name"], str) and len(feat["province_name"]) > 0
+
+        # Geometry must parse to valid GeoJSON Polygon or MultiPolygon
+        geom = json.loads(feat["geojson"])
+        assert geom["type"] in ("Polygon", "MultiPolygon")
+        assert len(geom["coordinates"]) > 0
+
+
+def test_synthetic_province_median_calculation(
+    isolated_session: Session,
+) -> None:
+    """Verify statistical median calculation on synthetic deterministic points."""
+    import json
+    import uuid
+
+    from geoalchemy2.elements import WKTElement
+
+    # Create isolated dataset
+    ds_id = uuid.uuid4()
+    dataset = HazardDataset(
+        id=ds_id,
+        source="TEST_SYNTHETIC",
+        source_version="1.0",
+        model_name="Synthetic Test",
+        hazard_metric="PGA",
+        unit="g",
+        return_period_years=475,
+        exceedance_probability=0.10,
+        time_horizon_years=50,
+        reference_vs30_mps=800.0,
+        reference_ground="Rock",
+        version_doi="10.5281/synth.1",
+        concept_doi="10.5281/synth.c",
+        license="CC BY-NC-SA 4.0",
+        attribution="Synthetic",
+        source_artifact="synth.zip",
+        source_artifact_size_bytes=100,
+        source_checksum_algorithm="md5",
+        source_checksum_value="xyz",
+        ingest_scope="test",
+        scope_min_longitude=29.0,
+        scope_min_latitude=39.0,
+        scope_max_longitude=31.0,
+        scope_max_latitude=41.0,
+    )
+    isolated_session.add(dataset)
+    isolated_session.flush()
+
+    # Create 3 points inside a synthetic 1x1 degree box [30.0..31.0, 40.0..41.0]
+    # PGA values: 0.12, 0.28, 0.44 -> median must be 0.28
+    pts = [
+        EarthquakeHazardPoint(
+            id=uuid.uuid4(),
+            dataset_id=ds_id,
+            source_record_id=101,
+            longitude=30.2,
+            latitude=40.2,
+            pga_g=0.12,
+            geometry=WKTElement("POINT(30.2 40.2)", srid=4326),
+        ),
+        EarthquakeHazardPoint(
+            id=uuid.uuid4(),
+            dataset_id=ds_id,
+            source_record_id=102,
+            longitude=30.5,
+            latitude=40.5,
+            pga_g=0.28,
+            geometry=WKTElement("POINT(30.5 40.5)", srid=4326),
+        ),
+        EarthquakeHazardPoint(
+            id=uuid.uuid4(),
+            dataset_id=ds_id,
+            source_record_id=103,
+            longitude=30.8,
+            latitude=40.8,
+            pga_g=0.44,
+            geometry=WKTElement("POINT(30.8 40.8)", srid=4326),
+        ),
+    ]
+    isolated_session.add_all(pts)
+    isolated_session.flush()
+
+    # Synthetic single-box province polygon
+    box_polygon = {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [30.0, 40.0],
+                [31.0, 40.0],
+                [31.0, 41.0],
+                [30.0, 41.0],
+                [30.0, 40.0],
+            ]
+        ],
+    }
+    test_provs = [
+        {
+            "plate_code": 1,
+            "province_id": "01",
+            "province_name": "TestProvince",
+            "geojson": json.dumps(box_polygon),
+        }
+    ]
+
+    repo = EarthquakeHazardRepository(isolated_session)
+    result = repo.aggregate_provinces_hazard(ds_id, test_provs)
+    assert len(result) == 1
+    p = result[0]
+    assert p["sample_count"] == 3
+    assert math.isclose(p["min_pga_g"], 0.12, abs_tol=1e-6)
+    assert math.isclose(p["median_pga_g"], 0.28, abs_tol=1e-6)
+    assert math.isclose(p["max_pga_g"], 0.44, abs_tol=1e-6)
+
+
+def test_provinces_openapi_specification() -> None:
+    """Verify OpenAPI documentation exposes /provinces route and 16 paths."""
+    from app.main import app
+
+    openapi = app.openapi()
+    paths = openapi["paths"]
+    assert "/api/v1/earthquake-hazards/provinces" in paths
+    assert len(paths) == 16
+
+    route_info = paths["/api/v1/earthquake-hazards/provinces"]["get"]
+    assert "Earthquake Hazards" in route_info["tags"]
+    assert "200" in route_info["responses"]

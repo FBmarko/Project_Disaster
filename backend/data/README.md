@@ -49,3 +49,15 @@ python -m app.scripts.import_gem_faults --download --all
 # Local file input is also supported:
 python -m app.scripts.import_gem_faults --file path/to/faults.geojson --turkey-only
 ```
+
+## 5. Administrative Boundary Dataset: Türkiye 81 Provinces GeoJSON
+
+For spatial aggregation of discrete seismic hazard grid points into province-level summaries:
+
+- **File**: `backend/data/turkey_provinces.geojson`
+- **Source**: [alpers/Turkey-Maps-GeoJSON](https://github.com/alpers/Turkey-Maps-GeoJSON) (`tr-cities.json`)
+- **License**: **Apache-2.0** (Apache License 2.0)
+- **Canonical CRS**: **EPSG:4326** (WGS 84 Polygon / MultiPolygon)
+- **Features**: Exactly 81 administrative province boundaries (`number` 1 to 81, matching official Turkish plate codes).
+- **Purpose**: Spatially partition discrete GEM GSHM v2026.1 hazard nodes into per-province statistical summaries (sample count, minimum, median, maximum PGA).
+- **Notice**: This open boundary dataset is packaged for runtime geospatial queries. GEM seismic hazard summaries derived from these boundaries represent reference-rock ($V_{s30} = 800\text{ m/s}$) median accelerations across provincial territories and do not constitute official AFAD hazard zones or site-specific building design parameters.

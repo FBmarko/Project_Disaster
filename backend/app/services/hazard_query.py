@@ -8,10 +8,14 @@ from sqlalchemy.orm import Session
 from app.integrations.gem.hazard_constants import TURKEY_CONTEXT_BBOX
 from app.models.hazard_dataset import HazardDataset
 from app.repositories.earthquake_hazard import EarthquakeHazardRepository
+from app.resources.provinces import get_turkey_province_features
 from app.schemas.hazard_api import (
     DEFAULT_HAZARD_BBOX_DISCLAIMER,
     DEFAULT_HAZARD_DATA_DELIVERY,
     DEFAULT_HAZARD_DISCLAIMER,
+    DEFAULT_PROVINCE_BOUNDARY_SOURCE,
+    DEFAULT_PROVINCE_HAZARD_DISCLAIMER,
+    DEFAULT_SUMMARY_METHOD,
     HazardDatasetMetadataResponse,
     HazardFeatureCollection,
     HazardFeatureCollectionMetadata,
@@ -21,6 +25,10 @@ from app.schemas.hazard_api import (
     HazardPointFeature,
     HazardPointGeometry,
     HazardPointProperties,
+    ProvinceHazardDatasetMetadata,
+    ProvinceHazardMetricMetadata,
+    ProvinceHazardResponse,
+    ProvinceHazardSummary,
     QueryCoordinates,
     ScopeBounds,
 )
@@ -291,4 +299,58 @@ class HazardQueryService:
         return HazardFeatureCollection(
             features=features,
             metadata=metadata,
+        )
+
+    def get_province_hazards(self) -> ProvinceHazardResponse:
+        """Fetch province-level seismic hazard summaries from active GEM dataset.
+
+        Uses PostGIS ST_Covers spatial aggregation against official Turkish province
+        polygons.
+        """
+        dataset = self.get_active_dataset()
+
+        provinces = get_turkey_province_features()
+        raw_summaries = self.repository.aggregate_provinces_hazard(
+            dataset.id, provinces
+        )
+
+        province_items = [
+            ProvinceHazardSummary(
+                province_id=row["province_id"],
+                plate_code=row["plate_code"],
+                province_name=row["province_name"],
+                sample_count=row["sample_count"],
+                min_pga_g=row["min_pga_g"],
+                median_pga_g=row["median_pga_g"],
+                max_pga_g=row["max_pga_g"],
+            )
+            for row in raw_summaries
+        ]
+
+        dataset_meta = ProvinceHazardDatasetMetadata(
+            source=dataset.source,
+            source_version=dataset.source_version,
+            model_name=dataset.model_name,
+            version_doi=dataset.version_doi,
+            license=dataset.license,
+            attribution=dataset.attribution,
+        )
+
+        metric_meta = ProvinceHazardMetricMetadata(
+            name=dataset.hazard_metric,
+            unit=dataset.unit,
+            return_period_years=dataset.return_period_years,
+            exceedance_probability=dataset.exceedance_probability,
+            time_horizon_years=dataset.time_horizon_years,
+            reference_vs30_mps=dataset.reference_vs30_mps,
+            reference_ground=dataset.reference_ground,
+        )
+
+        return ProvinceHazardResponse(
+            dataset=dataset_meta,
+            metric=metric_meta,
+            summary_method=DEFAULT_SUMMARY_METHOD,
+            provinces=province_items,
+            boundary_source=DEFAULT_PROVINCE_BOUNDARY_SOURCE,
+            disclaimer=DEFAULT_PROVINCE_HAZARD_DISCLAIMER,
         )
