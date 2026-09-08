@@ -1,20 +1,49 @@
 # ==============================================================================
-# AFET360 — Production-Oriented Docker Compose Stack
-# Self-contained runtime for FastAPI backend and PostGIS database.
-# Note: Database port 5432 is intentionally NOT exposed to the host to protect
-# against external exposure and prevent conflicts with the development DB.
+# AFET360 — Production-Oriented Self-Hosted Docker Compose Stack
+# Architecture:
+#   Public Ingress (80/443) -> Caddy (Web / Reverse Proxy / Static SPA)
+#     - /api/*, /openapi.json, /docs* -> FastAPI :8000 (Internal)
+#     - All other paths -> Built React/Vite SPA (HTML fallback)
+#   FastAPI :8000 -> PostGIS :5432 (Internal)
+#   FastAPI :8000 -> Ollama :11434 (Internal, optional profile)
 # ==============================================================================
 name: afet360-prod
 
 services:
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+    image: afet360-web:production
+    restart: unless-stopped
+    ports:
+      - "${WEB_HTTP_PORT:-80}:80"
+      - "${WEB_HTTPS_PORT:-443}:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - prod_caddy_data:/data
+      - prod_caddy_config:/config
+    depends_on:
+      - api
+    networks:
+      - prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
     image: afet360-backend:production
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - 8000
     environment:
       ENVIRONMENT: production
       DEBUG: "false"
@@ -23,14 +52,25 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-afet360}
       POSTGRES_USER: ${POSTGRES_USER:-afet360}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      # Runtime secrets / configuration supplied at deployment (TASK 16):
-      # GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      # CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      # AI Provider Configuration (default: ollama, optional: gemini)
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:2b-q4_K_M}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Trusted proxy forwarding: trusted only within internal prod_network ingress boundary
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
+    volumes:
+      - prod_dataset_cache:/app/data/cache
     depends_on:
       db:
         condition: service_healthy
     networks:
       - prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   db:
     image: postgis/postgis:16-3.4
@@ -48,9 +88,33 @@ services:
       retries: 5
     networks:
       - prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ollama:
+    image: ollama/ollama:0.33.3
+    profiles:
+      - ollama
+    restart: unless-stopped
+    volumes:
+      - prod_ollama_data:/root/.ollama
+    networks:
+      - prod_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   prod_postgres_data:
+  prod_dataset_cache:
+  prod_caddy_data:
+  prod_caddy_config:
+  prod_ollama_data:
 
 networks:
   prod_network:

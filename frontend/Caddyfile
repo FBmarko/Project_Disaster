@@ -1,0 +1,34 @@
+﻿ {
+	admin off
+}
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# Same-origin API routing to internal FastAPI container
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle /openapi.json {
+		reverse_proxy api:8000
+	}
+	handle /docs* {
+		reverse_proxy api:8000
+	}
+	handle /redoc* {
+		reverse_proxy api:8000
+	}
+
+	# Static SPA serving with HTML fallback for client-side routing
+	handle {
+		header {
+			X-Content-Type-Options nosniff
+			X-Frame-Options DENY
+			Referrer-Policy no-referrer-when-downgrade
+			-Server
+		}
+		root * /usr/share/caddy
+		try_files {path} /index.html
+		file_server
+	}
+}

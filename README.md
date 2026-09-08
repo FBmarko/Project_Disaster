@@ -29,3 +29,11 @@ Ekip üyelerinin kendi bilgisayarlarında AFET360'ı bağımsız olarak kurup su
 - **İlk Kurulum**: `.\scripts\demo\setup.ps1`
 - **Demo Başlat**: `.\scripts\demo\start.ps1`
 - **Demo Durdur**: `.\scripts\demo\stop.ps1`
+
+## Canlı Sunucu & Production Kurulumu (Production Deployment)
+
+AFET360'ın bağımsız bir Linux sunucusunda Caddy ters vekili (reverse proxy), Docker Compose ve PostGIS ile canlıya alınması için hazırlanmış kılavuz:
+
+- **Production Runbook**: [`docs/production-deployment.md`](docs/production-deployment.md)
+- **Production Compose**: `docker-compose.prod.yml`
+- **Environment Şablonu**: `deploy/.env.production.example`
