@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -19,12 +21,15 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "afet360_dev_password"
     DATABASE_URL: str | None = None
 
-    # AI Provider configuration (Google Gemini)
+    # AI Provider selection (default: local Ollama)
+    AI_PROVIDER: Literal["ollama", "gemini"] = "ollama"
+
+    # AI Provider configuration (Google Gemini - optional unless AI_PROVIDER=gemini)
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-3.8-flash"
     GEMINI_TIMEOUT_SECONDS: float = 30.0
 
-    # AI Provider configuration (Local Ollama)
+    # AI Provider configuration (Local Ollama - default provider)
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     OLLAMA_MODEL: str = "qwen3.5:2b-q4_K_M"
     OLLAMA_TIMEOUT_SECONDS: float = 30.0
@@ -69,6 +74,20 @@ class Settings(BaseSettings):
                 "Rate limit and request body size settings must be greater than 0."
             )
         return value
+
+    @field_validator("AI_PROVIDER", mode="before")
+    @classmethod
+    def validate_ai_provider(cls, value: object) -> str:
+        """Ensure AI provider is strictly 'ollama' or 'gemini'."""
+        if not isinstance(value, str):
+            raise ValueError("AI_PROVIDER must be a string.")
+        clean_val = value.strip().lower()
+        if clean_val not in ("ollama", "gemini"):
+            raise ValueError(
+                f"Unsupported AI_PROVIDER '{value}'. "
+                "Supported providers are: 'ollama', 'gemini'."
+            )
+        return clean_val
 
     @field_validator("OLLAMA_BASE_URL", mode="before")
     @classmethod

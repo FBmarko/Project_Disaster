@@ -6,14 +6,25 @@ from app.integrations.ai.gemini import GeminiPreparednessAIProvider
 from app.integrations.ai.ollama import OllamaPreparednessAIProvider
 
 
-def get_ai_provider() -> PreparednessAIProvider | None:
-    """Return the active AI provider instance or None if not configured.
+def get_ollama_provider() -> OllamaPreparednessAIProvider | None:
+    """Return an OllamaPreparednessAIProvider instance configured from settings.
 
-    If GEMINI_API_KEY is unset or empty, returns None.
-    The service layer detects None and returns HTTP 503 Service Unavailable.
-    When configured, instantiates GeminiPreparednessAIProvider using
-    application settings.
-    Automated tests may override this dependency using app.dependency_overrides.
+    Returns None if OLLAMA_BASE_URL is unset or whitespace.
+    """
+    if not settings.OLLAMA_BASE_URL or not settings.OLLAMA_BASE_URL.strip():
+        return None
+
+    return OllamaPreparednessAIProvider(
+        base_url=settings.OLLAMA_BASE_URL,
+        model=settings.OLLAMA_MODEL,
+        timeout=settings.OLLAMA_TIMEOUT_SECONDS,
+    )
+
+
+def get_gemini_provider() -> GeminiPreparednessAIProvider | None:
+    """Return a GeminiPreparednessAIProvider instance configured from settings.
+
+    Returns None if GEMINI_API_KEY is unset or whitespace.
     """
     if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
         return None
@@ -25,17 +36,22 @@ def get_ai_provider() -> PreparednessAIProvider | None:
     )
 
 
-def get_ollama_provider() -> OllamaPreparednessAIProvider | None:
-    """Return an OllamaPreparednessAIProvider instance configured from settings.
+def get_ai_provider() -> PreparednessAIProvider | None:
+    """Return the active AI provider instance or None if not configured.
 
-    Provided for standalone instantiation, testing, and future provider selection.
-    Does NOT change default get_ai_provider behavior in TASK 14C-B.
+    Resolves provider strictly based on settings.AI_PROVIDER:
+    - 'ollama' (default): returns OllamaPreparednessAIProvider.
+    - 'gemini': returns GeminiPreparednessAIProvider if GEMINI_API_KEY is set,
+      or None if credentials are missing (service layer maps None to HTTP 503).
+
+    FAIL-CLOSED POLICY:
+    Never falls back across providers automatically. If the selected provider is
+    unavailable, fails closed without silently contacting the other provider.
+    Automated tests may override this dependency using app.dependency_overrides.
     """
-    if not settings.OLLAMA_BASE_URL or not settings.OLLAMA_BASE_URL.strip():
-        return None
+    if settings.AI_PROVIDER == "ollama":
+        return get_ollama_provider()
+    elif settings.AI_PROVIDER == "gemini":
+        return get_gemini_provider()
 
-    return OllamaPreparednessAIProvider(
-        base_url=settings.OLLAMA_BASE_URL,
-        model=settings.OLLAMA_MODEL,
-        timeout=settings.OLLAMA_TIMEOUT_SECONDS,
-    )
+    return None

@@ -78,6 +78,7 @@ def test_gemini_provider_init_validation() -> None:
 
 def test_get_ai_provider_dependency_factory(monkeypatch: pytest.MonkeyPatch) -> None:
     """get_ai_provider returns None if unset, or provider instance when set."""
+    monkeypatch.setattr(settings, "AI_PROVIDER", "gemini")
     monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
     assert get_ai_provider() is None
 

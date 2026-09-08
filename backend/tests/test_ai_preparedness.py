@@ -36,6 +36,7 @@ def test_default_production_behavior_returns_503_unavailable(
     """
     from app.core.config import settings
 
+    monkeypatch.setattr(settings, "AI_PROVIDER", "gemini")
     monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
 
     # Ensure no dependency override is active
