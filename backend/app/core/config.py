@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-3.8-flash"
     GEMINI_TIMEOUT_SECONDS: float = 30.0
 
+    # AI Provider configuration (Local Ollama)
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    OLLAMA_MODEL: str = "qwen3.5:2b-q4_K_M"
+    OLLAMA_TIMEOUT_SECONDS: float = 30.0
+
     # CORS configuration
     CORS_ALLOWED_ORIGINS: list[str] = [
         "http://localhost:5173",
@@ -63,6 +68,28 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Rate limit and request body size settings must be greater than 0."
             )
+        return value
+
+    @field_validator("OLLAMA_BASE_URL", mode="before")
+    @classmethod
+    def validate_ollama_base_url(cls, value: object) -> str:
+        """Ensure Ollama base URL is non-empty and does not bind to 0.0.0.0."""
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("OLLAMA_BASE_URL must not be empty.")
+        clean_url = value.strip().rstrip("/")
+        if "0.0.0.0" in clean_url:
+            raise ValueError(
+                "OLLAMA_BASE_URL must not use 0.0.0.0 as host. "
+                "Use 127.0.0.1 or localhost."
+            )
+        return clean_url
+
+    @field_validator("OLLAMA_TIMEOUT_SECONDS")
+    @classmethod
+    def validate_ollama_timeout(cls, value: float) -> float:
+        """Ensure Ollama timeout is strictly positive."""
+        if value <= 0:
+            raise ValueError("OLLAMA_TIMEOUT_SECONDS must be greater than 0.")
         return value
 
     @computed_field
