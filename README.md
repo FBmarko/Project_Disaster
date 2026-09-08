@@ -19,4 +19,13 @@ Proje 3 kişilik bir ekip tarafından geliştirilmektedir.
 
 ## Durum
 
-Proje başlangıç aşamasındadır.
+Proje geliştirme aşamasındadır.
+
+## Sunum & Demo Kurulumu (Presentation Setup)
+
+Ekip üyelerinin kendi bilgisayarlarında AFET360'ı bağımsız olarak kurup sunabilmesi için hazırlanmış kılavuz ve scriptler:
+
+- **Runbook**: [`docs/presentation-laptop-setup.md`](docs/presentation-laptop-setup.md)
+- **İlk Kurulum**: `.\scripts\demo\setup.ps1`
+- **Demo Başlat**: `.\scripts\demo\start.ps1`
+- **Demo Durdur**: `.\scripts\demo\stop.ps1`
