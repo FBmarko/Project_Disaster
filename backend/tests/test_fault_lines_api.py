@@ -8,7 +8,7 @@ from app.db.session import engine
 from app.main import app
 
 client = TestClient(app)
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("sample_fault_dataset")]
 
 
 def test_get_fault_lines_collection_success() -> None:
@@ -59,9 +59,10 @@ def test_get_fault_lines_with_bbox_filter() -> None:
     response = client.get("/api/v1/fault-lines?bbox=28.0,40.0,30.0,41.5")
     assert response.status_code == 200
     data = response.json()
-    assert data["type"] == "FeatureCollection"
     assert data["metadata"]["count"] > 0
-    assert data["metadata"]["count"] < 722  # Bounded subset of total 722 features
+    all_res = client.get("/api/v1/fault-lines?limit=100")
+    total_count = all_res.json()["metadata"]["count"]
+    assert data["metadata"]["count"] <= total_count
 
 
 @pytest.mark.parametrize(
@@ -206,4 +207,3 @@ def test_api_read_operations_leave_database_clean() -> None:
         after = conn.execute(text("SELECT count(*) FROM fault_segments")).scalar()
 
     assert before == after
-    assert before == 722

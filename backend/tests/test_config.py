@@ -1,8 +1,19 @@
+import pytest
+
 from app.core.config import Settings
 
 
-def test_default_database_settings() -> None:
-    settings = Settings()
+def test_default_database_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in [
+        "POSTGRES_HOST",
+        "POSTGRES_PORT",
+        "POSTGRES_DB",
+        "POSTGRES_USER",
+        "POSTGRES_PASSWORD",
+        "DATABASE_URL",
+    ]:
+        monkeypatch.delenv(var, raising=False)
+    settings = Settings(_env_file=None)
     assert settings.POSTGRES_HOST == "localhost"
     assert settings.POSTGRES_PORT == 5432
     assert settings.POSTGRES_DB == "afet360"

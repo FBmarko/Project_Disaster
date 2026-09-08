@@ -316,6 +316,12 @@ def test_live_inspect_dataset_readiness_read_only() -> None:
     # Invariant: Status check must be strictly read-only
     assert before_counts == after_counts
 
+    if before_counts["faults"] == 0:
+        # Fresh unpopulated database (e.g. CI)
+        assert report["overall_ready"] is False
+        assert report["all_static_ready"] is False
+        return
+
     # Invariants for currently populated database
     assert report["overall_ready"] is True
     assert report["all_static_ready"] is True
