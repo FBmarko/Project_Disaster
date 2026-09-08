@@ -238,9 +238,13 @@ def test_provision_static_delegates_to_importers(tmp_path: Path) -> None:
             cache_dir=None,
             gpkg_path=str(gpkg_file),
             zip_path=None,
+            download=False,
             verify_zip=True,
         )
-        mock_assembly.assert_called_once_with(str(assembly_file))
+        mock_assembly.assert_called_once_with(
+            snapshot_path_str=str(assembly_file),
+            download=False,
+        )
         mock_status.assert_called_once_with(as_json=False, check_exit=False)
 
 

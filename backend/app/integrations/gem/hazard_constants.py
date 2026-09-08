@@ -22,6 +22,9 @@ GEM_ATTRIBUTION = (
 )
 
 # Source Artifact Specs
+GEM_DOWNLOAD_URL = (
+    "https://zenodo.org/api/records/20735384/files/gshm_v2026_1_vector.zip/content"
+)
 GEM_ZIP_FILENAME = "gshm_v2026_1_vector.zip"
 GEM_ZIP_SIZE_BYTES = 935540326
 GEM_ZIP_MD5 = "7470e54534f4a4307a7310aa766ab11b"

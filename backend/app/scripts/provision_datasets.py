@@ -334,8 +334,11 @@ def run_provision_static(
     gshm_gpkg: str | None = None,
     gshm_cache_dir: str | None = None,
     gshm_zip: str | None = None,
+    download_hazard: bool = False,
     skip_gshm_zip_verify: bool = False,
     assembly_snapshot: str | None = None,
+    download_assembly: bool = False,
+    download_all: bool = False,
 ) -> int:
     """Execute operator provisioning for specified static datasets.
 
@@ -345,17 +348,23 @@ def run_provision_static(
     Returns:
         0 on full success, non-zero exit code if any import fails or inputs are invalid.
     """
+    if download_all:
+        download_faults = True
+        download_hazard = True
+        download_assembly = True
+
     has_faults = bool(faults_file or download_faults)
-    has_gshm = bool(gshm_gpkg or gshm_cache_dir)
-    has_assembly = bool(assembly_snapshot)
+    has_gshm = bool(gshm_gpkg or gshm_cache_dir or download_hazard)
+    has_assembly = bool(assembly_snapshot or download_assembly)
 
     if not (has_faults or has_gshm or has_assembly):
         logger.error(
             "No static datasets specified for provisioning.\n"
             "Provide at least one of:\n"
             "  --faults-file <path> OR --download-faults\n"
-            "  --gshm-gpkg <path> OR --gshm-cache-dir <dir>\n"
-            "  --assembly-snapshot <path>"
+            "  --gshm-gpkg <path> OR --gshm-cache-dir <dir> OR --download-hazard\n"
+            "  --assembly-snapshot <path> OR --download-assembly\n"
+            "  OR --download-all"
         )
         return 1
 
@@ -405,6 +414,7 @@ def run_provision_static(
             cache_dir=gshm_cache_dir,
             gpkg_path=gshm_gpkg,
             zip_path=gshm_zip,
+            download=download_hazard,
             verify_zip=not skip_gshm_zip_verify,
         )
         if code != 0:
@@ -414,9 +424,12 @@ def run_provision_static(
         results["gshm_hazard"] = "SUCCESS"
 
     # 3. Provision Assembly Areas
-    if has_assembly and assembly_snapshot:
+    if has_assembly:
         logger.info(">>> Provisioning OSM Emergency Assembly Areas...")
-        code = run_assembly_import(assembly_snapshot)
+        code = run_assembly_import(
+            snapshot_path_str=assembly_snapshot,
+            download=download_assembly,
+        )
         if code != 0:
             logger.error("Assembly areas import failed with exit code %d", code)
             results["assembly_areas"] = f"FAILED (exit code {code})"
@@ -462,6 +475,11 @@ def main() -> None:
         "provision-static",
         help="Explicitly provision static datasets (faults, GSHM, assembly)",
     )
+    prov_parser.add_argument(
+        "--download-all",
+        action="store_true",
+        help="Download and provision all static datasets (faults, hazard, assembly)",
+    )
     # Faults group
     f_group = prov_parser.add_mutually_exclusive_group(required=False)
     f_group.add_argument(
@@ -482,6 +500,11 @@ def main() -> None:
     )
 
     # GSHM group
+    prov_parser.add_argument(
+        "--download-hazard",
+        action="store_true",
+        help="Download official GEM GSHM archive from Zenodo and extract GeoPackage",
+    )
     prov_parser.add_argument(
         "--gshm-gpkg",
         type=str,
@@ -505,6 +528,11 @@ def main() -> None:
 
     # Assembly group
     prov_parser.add_argument(
+        "--download-assembly",
+        action="store_true",
+        help="Download latest OSM emergency assembly points from Overpass API",
+    )
+    prov_parser.add_argument(
         "--assembly-snapshot",
         type=str,
         help="Path to approved Overpass JSON snapshot for assembly areas",
@@ -523,8 +551,11 @@ def main() -> None:
                 gshm_gpkg=args.gshm_gpkg,
                 gshm_cache_dir=args.gshm_cache_dir,
                 gshm_zip=args.gshm_zip,
+                download_hazard=args.download_hazard,
                 skip_gshm_zip_verify=args.skip_gshm_zip_verify,
                 assembly_snapshot=args.assembly_snapshot,
+                download_assembly=args.download_assembly,
+                download_all=args.download_all,
             )
         )
 

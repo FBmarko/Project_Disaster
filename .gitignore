@@ -71,6 +71,7 @@ Thumbs.db
 # =========================
 backend/data/*.geojson
 backend/data/raw/
+backend/data/cache/
 !backend/data/README.md
 !backend/data/turkey_boundary.geojson
 !backend/data/turkey_provinces.geojson

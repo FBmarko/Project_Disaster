@@ -1,4 +1,5 @@
 import logging
+import ssl
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -80,6 +81,7 @@ class AfadClient:
         return httpx.Client(
             timeout=self.timeout,
             follow_redirects=True,
+            verify=ssl.create_default_context(),
             headers={"User-Agent": DEFAULT_USER_AGENT},
         )
 
@@ -110,6 +112,7 @@ class AfadClient:
             "limit": str(limit),
             "offset": str(offset),
             "format": "json",
+            "orderby": "timedesc",
         }
 
         if bbox is not None:

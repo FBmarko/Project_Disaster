@@ -1,4 +1,5 @@
 import json
+import ssl
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -331,6 +332,21 @@ def test_afad_client_follow_redirects_configured() -> None:
     http_client = client._create_client()
     try:
         assert http_client.follow_redirects is True
+    finally:
+        http_client.close()
+
+
+def test_afad_client_ssl_verification_enabled() -> None:
+    """Verify default HTTP client enables TLS verification with system context."""
+    client = AfadClient()
+    http_client = client._create_client()
+    try:
+        # Verify custom or default SSL context has verification strictly ON
+        ctx = getattr(http_client._transport._pool, "_ssl_context", None)
+        assert ctx is not None
+        assert isinstance(ctx, ssl.SSLContext)
+        assert ctx.check_hostname is True
+        assert ctx.verify_mode == ssl.CERT_REQUIRED
     finally:
         http_client.close()
 
