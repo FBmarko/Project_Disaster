@@ -1,6 +1,102 @@
-"""AI safety policy, prohibited behavior constraints, and prompt builder."""
+import re
 
-from app.schemas.ai import DisasterType, PreparednessGuideRequest, SupportedLanguage
+from app.integrations.ai.exceptions import AIOutputSafetyViolationError
+from app.schemas.ai import (
+    DisasterType,
+    PreparednessGuideContent,
+    PreparednessGuideRequest,
+    SupportedLanguage,
+)
+
+# Deterministic disclaimers / cautions indicating safe, compliant statements
+OUTPUT_SAFETY_DISCLAIMERS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"mümkün\s+değil", re.IGNORECASE),
+    re.compile(r"bilin(?:emez|memektedir)", re.IGNORECASE),
+    re.compile(r"tahmin\s+edilemez", re.IGNORECASE),
+    re.compile(r"not\s+possible\s+to\s+predict", re.IGNORECASE),
+    re.compile(r"cannot\s+be\s+predicted", re.IGNORECASE),
+    re.compile(r"değerlendirmesi\s+gerekir", re.IGNORECASE),
+    re.compile(r"requires\s+professional\s+evaluation", re.IGNORECASE),
+    re.compile(r"resm[iî]\s+yönlendirmeleri", re.IGNORECASE),
+    re.compile(r"follow\s+official", re.IGNORECASE),
+)
+
+# Deterministic prohibited patterns for post-generation output safety validation
+PROHIBITED_OUTPUT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    # 1. Prediction (Turkish)
+    (
+        "PREDICTION_TR",
+        re.compile(
+            r"(?:\b(?:yarın|bu\s+(?:hafta|ay|yıl)|yakında|gelecek\s+(?:hafta|ay))\b.*"
+            r"\b(?:deprem|afet|sarsıntı)\b.*\b(?:olacak|gerçekleşecek|meydana\s+gelecek|bekleniyor)\b)|"
+            r"(?:\b(?:deprem|afet|sarsıntı)\b.*\b(?:kesinlikle|mutlaka)\b.*\b(?:olacak|gerçekleşecek|meydana\s+gelecek)\b)",
+            re.IGNORECASE | re.DOTALL,
+        ),
+    ),
+    # 2. Prediction (English)
+    (
+        "PREDICTION_EN",
+        re.compile(
+            r"(?:\b(?:an?\s+)?(?:earthquake|disaster)\b.*\bwill\s+(?:happen|occur|strike)\b.*\b(?:tomorrow|this\s+week|next\s+week|soon)\b)|"
+            r"(?:\b(?:tomorrow|this\s+week|next\s+week)\b.*\b(?:an?\s+)?(?:earthquake|disaster)\b.*\bwill\s+(?:happen|occur|strike)\b)|"
+            r"(?:\b(?:there\s+will\s+be|expect)\s+an?\s+earthquake\b.*\b(?:tomorrow|this\s+week|next\s+week)\b)",
+            re.IGNORECASE | re.DOTALL,
+        ),
+    ),
+    # 3. Future occurrence probability claim (Turkish & English)
+    (
+        "PROBABILITY_CLAIM",
+        re.compile(
+            r"(?:\b(?:deprem|afet|sarsıntı)\s+(?:olasılığı|ihtimali)\s*(?:[%]|yüzde)\s*\d+)|"
+            r"(?:(?:[%]|yüzde)\s*\d+\s*(?:olasılıkla|ihtimalle)\s+(?:deprem|afet))|"
+            r"(?:\b\d{1,3}%\s+(?:chance|probability|risk)\s+of\s+(?:an?\s+)?(?:earthquake|disaster)\b)|"
+            r"(?:\b(?:chance|probability)\s+of\s+(?:an?\s+)?(?:earthquake|disaster)\s+(?:is\s+)?\d{1,3}%\b)",
+            re.IGNORECASE,
+        ),
+    ),
+    # 4. Building safety guarantee (Turkish & English)
+    (
+        "BUILDING_GUARANTEE",
+        re.compile(
+            r"(?:\b(?:bu\s+bina|bina(?:nız)?|ev(?:iniz)?|yapı(?:nız)?)\b.*?\b(?:kesinlikle\s+|tamamen\s+)?güvenlidir\b)|"
+            r"(?:\b(?:this\s+building|your\s+building|this\s+structure|your\s+home|your\s+house)\b.*?\bis\s+(?:guaranteed\s+|completely\s+|totally\s+)?safe\b)|"
+            r"(?:\bbuilding\s+is\s+safe\s+during\s+an?\s+earthquake\b)",
+            re.IGNORECASE,
+        ),
+    ),
+    # 5. Route safety guarantee (Turkish & English)
+    (
+        "ROUTE_GUARANTEE",
+        re.compile(
+            r"(?:\b(?:bu\s+rota|bu\s+güzergah|tahliye\s+(?:rotası|güzergahı))\b.*?\b(?:kesinlikle\s+|tamamen\s+|garantili\s+olarak\s+)?güvenlidir\b)|"
+            r"(?:\b(?:this\s+route|this\s+path|this\s+evacuation\s+route)\b.*?\bis\s+(?:guaranteed\s+|completely\s+|totally\s+)?safe\b)|"
+            r"(?:\bguaranteed?\s+safe\s+route\b)",
+            re.IGNORECASE,
+        ),
+    ),
+    # 6. Fabricated live warning (Turkish & English)
+    (
+        "LIVE_WARNING",
+        re.compile(
+            r"(?:\bAFAD\s+(?:şu\s+anda|anlık\s+olarak|derhal|az\s+önce)\s+.*(?:tahliye\s+emri\s+verdi|uyarı\s+yayınladı|alarm\s+verdi))|"
+            r"(?:\bAFAD\s+tahliye\s+emri\s+verdi\b)|"
+            r"(?:\bAFAD\s+(?:has\s+)?(?:just\s+)?(?:issued|declared)\s+an?\s+(?:immediate\s+)?(?:evacuation\s+order|emergency\s+alert)\b)|"
+            r"(?:\bevacuation\s+order\s+has\s+(?:just\s+)?been\s+issued\s+by\s+AFAD\b)",
+            re.IGNORECASE,
+        ),
+    ),
+    # 7. False authority (Turkish & English)
+    (
+        "FALSE_AUTHORITY",
+        re.compile(
+            r"(?:\b(?:ben|biz)\s+(?:bir\s+)?AFAD\s+(?:yetkilisiyiz|yetkilisiyim|görevlisiyim|temsilcisiyim)\b)|"
+            r"(?:\bAFAD\s+olarak\s+(?:sizlere\s+)?(?:bildiririz|talimat\s+veriyoruz|emrediyoruz)\b)|"
+            r"(?:\b(?:i\s+am|we\s+are)\s+(?:an?\s+)?(?:AFAD\s+official|emergency\s+authority|government\s+official)\b)|"
+            r"(?:\bas\s+AFAD,\s+we\s+(?:order|instruct|declare)\b)",
+            re.IGNORECASE,
+        ),
+    ),
+)
 
 
 class PreparednessSafetyPolicy:
@@ -210,48 +306,56 @@ class PreparednessSafetyPolicy:
             permitted = "\n".join(f"- {p}" for p in cls.PERMITTED_SCOPE_TR)
             lang_instruction = "Yanıtınızı kesinlikle Türkçe olarak hazırlayın."
             section_guidance = (
-                "BÖLÜM KURALLARI:\n"
-                "- 'summary': Afet türü, şehir ve hane yapısına göre hazırlanmış "
-                "kısa genel özet (10-600 karakter).\n"
+                "BÖLÜM KURALLARI VE TERCİH EDİLEN MADDE SAYILARI (ZORUNLU):\n"
+                "- 'summary': 2-3 kısa ve öz cümle ile genel özet (10-600 karakter).\n"
                 "- 'priorities': En kritik can güvenliği ve hazırlık öncelikleri "
-                "(1-8 madde; depremde sarsıntı anında Çök-Kapan-Tutun, selde suya "
-                "girmeme, yangında derhal tahliye gibi temel güvenlik kurallarını "
-                "içermelidir).\n"
+                "(3-5 madde; her madde tek bir kısa, net cümle olmalıdır; "
+                "tercih edilen 5 maddeyi aşmayın).\n"
                 "- 'emergency_kit': Acil durum çantası ve temel ihtiyaç "
-                "malzemeleri (1-12 madde; hane kişi sayısına ve üyelerine göre "
-                "makul ölçüde uyarlanmış).\n"
+                "malzemeleri (5-8 madde; kısa ve net madde adları; "
+                "tercih edilen 8 maddeyi aşmayın).\n"
                 "- 'communication_plan': Aile ve hane halkı acil durum iletişim "
-                "planı (1-8 madde; toplanma noktası, şehir dışı irtibat kişisi, "
-                "SMS kullanımı vb.).\n"
+                "planı (3-5 net madde; toplanma noktası, şehir dışı irtibat kişisi, "
+                "SMS kullanımı vb.; tercih edilen 5 maddeyi aşmayın).\n"
                 "- 'special_needs': Çocuk, yaşlı birey veya evcil hayvan gibi "
-                "belirtilen hane özelliklerine yönelik hazırlık adımları (0-8 "
+                "belirtilen hane özelliklerine yönelik hazırlık adımları (0-4 "
                 "madde; özel durum belirtilmemişse genel erişilebilirlik/bireysel "
-                "ihtiyaç tavsiyeleri).\n"
+                "ihtiyaç tavsiyeleri; tercih edilen 4 maddeyi aşmayın).\n"
                 "- 'important_notes': Resmi makamlara (AFAD) yönlendirme, kritik "
-                "güvenlik uyarıları ve hatırlatmalar (0-6 madde).\n\n"
+                "güvenlik uyarıları ve hatırlatmalar (2-4 kısa madde; tercih edilen "
+                "4 maddeyi aşmayın).\n"
+                "Her madde tek bir kısa cümle veya kısa bir ifade olmalıdır. "
+                "Belirtilen tercih edilen madde sayılarını aşmayın. Bölümler "
+                "arasında aynı tavsiyeleri tekrarlamaktan, giriş ve dolgu "
+                "ifadelerinden kesinlikle kaçının. Doğrudan ve net olun.\n\n"
             )
         else:
             prohibitions = "\n".join(f"- {p}" for p in cls.PROHIBITED_BEHAVIORS_EN)
             permitted = "\n".join(f"- {p}" for p in cls.PERMITTED_SCOPE_EN)
             lang_instruction = "Prepare your response strictly in English."
             section_guidance = (
-                "SECTION REQUIREMENTS:\n"
-                "- 'summary': Concise scenario and household overview "
+                "SECTION REQUIREMENTS & PREFERRED CONCISE COUNTS (MANDATORY):\n"
+                "- 'summary': 2-3 concise sentences providing overview "
                 "(10-600 characters).\n"
                 "- 'priorities': Most critical immediate life-safety actions "
-                "and essential preparations (1-8 items; e.g. Drop-Cover-Hold On "
-                "for earthquake, never walking/driving in floodwater for flood, "
-                "immediate evacuation for fire).\n"
+                "and essential preparations (3-5 items; each item a single short, "
+                "direct sentence; do not exceed 5 items).\n"
                 "- 'emergency_kit': Recommended emergency kit items tailored to "
-                "household needs and size (1-12 items).\n"
+                "household needs and size (5-8 items; short concise item names; "
+                "do not exceed 8 items).\n"
                 "- 'communication_plan': Family and household emergency "
-                "communication strategy (1-8 items; out-of-area contact, meeting "
-                "points, SMS over voice).\n"
+                "communication strategy (3-5 items; out-of-area contact, meeting "
+                "points, SMS over voice; do not exceed 5 items).\n"
                 "- 'special_needs': Household-specific considerations for "
-                "children, elderly members, or pets (0-8 items; if none, "
-                "general accessibility/individual guidance).\n"
+                "children, elderly members, or pets (0-4 items; if none, "
+                "general accessibility/individual guidance; do not exceed 4 items).\n"
                 "- 'important_notes': Caveats, official emergency source "
-                "reminders (AFAD), and essential boundaries (0-6 items).\n\n"
+                "reminders (AFAD), and essential boundaries (2-4 items; "
+                "do not exceed 4 items).\n"
+                "Each item must normally be one short sentence or phrase. "
+                "Do not exceed these preferred counts. Avoid repeating the same advice "
+                "across sections, and avoid introductory or filler prose. "
+                "Be direct and concise.\n\n"
             )
 
         return (
@@ -321,3 +425,44 @@ class PreparednessSafetyPolicy:
             "Generate practical, step-by-step educational guidance matching the "
             "required JSON structure exactly. Do not output anything outside JSON."
         )
+
+    @classmethod
+    def collect_all_text_segments(cls, content: PreparednessGuideContent) -> list[str]:
+        """Extract all visible generated text segments across all six sections."""
+        segments: list[str] = [content.summary]
+        for section in (
+            content.priorities,
+            content.emergency_kit,
+            content.communication_plan,
+            content.special_needs,
+            content.important_notes,
+        ):
+            segments.extend(section)
+        return segments
+
+    @classmethod
+    def validate_output_safety(cls, content: PreparednessGuideContent) -> None:
+        """Validate generated preparedness guide content against safety rules.
+
+        Inspects all generated text segments across all six sections.
+        Sentence-level splitting ensures disclaimers in one sentence do not
+        mask prohibited claims in another sentence.
+
+        Raises:
+            AIOutputSafetyViolationError: If any prohibited semantic claim is detected.
+        """
+        segments = cls.collect_all_text_segments(content)
+        for segment in segments:
+            sentences = [s.strip() for s in re.split(r"[.!?\n]+", segment) if s.strip()]
+            for sentence in sentences:
+                has_disclaimer = any(
+                    disc.search(sentence) for disc in OUTPUT_SAFETY_DISCLAIMERS
+                )
+                if has_disclaimer:
+                    continue
+
+                for violation_name, pattern in PROHIBITED_OUTPUT_PATTERNS:
+                    if pattern.search(sentence):
+                        raise AIOutputSafetyViolationError(
+                            f"Prohibited AI output claim detected: {violation_name}"
+                        )

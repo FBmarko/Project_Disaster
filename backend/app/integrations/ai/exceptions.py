@@ -24,3 +24,12 @@ class AIProviderMalformedOutputError(AIProviderError):
         self, message: str = "AI provider returned malformed or invalid output."
     ) -> None:
         super().__init__(message)
+
+
+class AIOutputSafetyViolationError(AIProviderError):
+    """Raised when generated AI output violates deterministic safety policy."""
+
+    def __init__(
+        self, message: str = "AI provider generated unsafe or prohibited content."
+    ) -> None:
+        super().__init__(message)

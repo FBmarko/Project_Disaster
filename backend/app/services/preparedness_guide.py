@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from app.integrations.ai.base import PreparednessAIProvider
 from app.integrations.ai.exceptions import (
+    AIOutputSafetyViolationError,
     AIProviderError,
     AIProviderMalformedOutputError,
     AIProviderUnavailableError,
@@ -103,7 +104,17 @@ class PreparednessGuideService:
                 detail="AI provider returned an invalid response.",
             ) from err
 
-        # 4. Attach backend-controlled disclaimer based on requested language
+        # 4. Deterministic post-generation output safety validation
+        try:
+            PreparednessSafetyPolicy.validate_output_safety(validated_guide)
+        except AIOutputSafetyViolationError as err:
+            logger.warning("AI output failed safety verification: %s", err)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="AI provider returned an invalid response.",
+            ) from err
+
+        # 5. Attach backend-controlled disclaimer based on requested language
         disclaimer = (
             DEFAULT_AI_DISCLAIMER_TR
             if request.language == SupportedLanguage.TR
