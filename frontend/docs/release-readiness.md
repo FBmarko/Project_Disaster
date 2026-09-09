@@ -16,8 +16,9 @@ current product boundary for frontend review and merge.
 - Local-only scenario and preparedness drafts that create no fabricated results,
   call no external AI provider and persist no location or household data.
 - Route-level chunks for all six pages. Province geometry stays local to the Home
-  route; the archived fault dataset is validation/provenance only; Google Maps
-  code loads only from the Simulation and Assembly routes when a key is present.
+  route; the archived fault dataset is validation/provenance only; MapLibre map
+  code loads only from the Simulation and Assembly routes.
+
 
 ## Backend and product contract dependencies
 
@@ -54,8 +55,9 @@ These are integration dependencies rather than frontend defects:
 - After route splitting, the entry chunk is 233.67 kB (75.41 kB gzip). The
   largest JavaScript chunk is the Home-only province geometry at 243.71 kB
   (88.45 kB gzip), and no chunk-size advisory remains.
-- Google Simulation and Assembly map implementations remain separate 1.89 kB and
-  3.51 kB chunks. The local fault archive is absent from production chunks.
+- MapLibre Simulation and Assembly map implementations remain separate chunks.
+  The local fault archive is absent from production chunks.
+
 - All seven frontend validators, the production build and lint pass. The local
   project API returned 722 real fault records and a valid empty proximity result
   for the checked segment.

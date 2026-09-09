@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # AFET360 Frontend & Web Server — Production Multi-Stage Dockerfile
 # Stage 1: Build React/Vite SPA with Node 22
 # Stage 2: Serve static SPA & reverse-proxy API via Caddy 2.9
@@ -18,12 +18,9 @@ RUN npm ci
 # Copy frontend source code and configuration
 COPY . .
 
-# Build-time Google Maps API key (public browser-visible configuration)
-ARG VITE_GOOGLE_MAPS_API_KEY=""
-ENV VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY}
-
 # Compile TypeScript and build static SPA bundle into dist/
 RUN npm run build
+
 
 # --- Stage 2: Caddy production web server ---
 FROM caddy:2.9-alpine

@@ -33,12 +33,12 @@ export const SCENARIO_VS30_ASSUMPTION_MS = 800.0
 export const SCENARIO_VS30_LABEL = 'Referans kaya varsayımı · Vs30 = 800 m/s'
 
 export const SIMULATION_MAP = {
-  center: { lat: 39, lng: 35 },
+  center: { longitude: 35, latitude: 39 },
   zoom: 5,
   // Fit Turkey on first render, including narrow viewports. No location is preselected.
-  bounds: { west: 25.5, south: 35.5, east: 45, north: 42.5, padding: 24 },
+  bounds: [
+    [25.5, 35.5],
+    [45.0, 42.5],
+  ] as [[number, number], [number, number]],
   loadTimeoutMs: 20_000,
 } as const
-
-/** Google's documented development map ID enables AdvancedMarker; it is not an API key. */
-export const DEVELOPMENT_MAP_ID = 'DEMO_MAP_ID'

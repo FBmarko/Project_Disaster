@@ -115,36 +115,20 @@ Kaynak, lisans, tekrar üretim ve filtreleme ayrıntıları: [data-sources.md](d
 
 ## Deprem Simülasyonu
 
-`/simulation`, `@vis.gl/react-google-maps` ile Google Maps JavaScript API'yi
-gösterir. Kullanıcı haritaya tıkladığında tek bir konum işaretçisi tutulur ve
+`/simulation`, MapLibre GL JS ve OpenFreeMap açık vektör harita servisini
+kullanır. Herhangi bir harita API anahtarı veya harici kimlik bilgisi
+gerektirmez. Kullanıcı haritaya tıkladığında tek bir konum işaretçisi tutulur ve
 koordinatlar yalnızca gösterimde dört ondalık basamağa yuvarlanır. Ayarlar
-4.0–8.0 Mw büyüklük kaydırıcısı, 5/10/20/30 km derinlik seçenekleri ve
+4.0–7.6 Mw büyüklük kaydırıcısı, 5/10/20/30 km derinlik seçenekleri ve
 25/50/100/150 km inceleme yarıçapı sunar.
 
-Gerçek anahtarı hiçbir zaman repoya eklemeyin. `.env.local` içinde:
-
-```env
-VITE_GOOGLE_MAPS_API_KEY=...
-```
-
-Üretimde gelişmiş işaretçiler için `VITE_GOOGLE_MAPS_MAP_ID` isteğe bağlı olarak
-tanımlanabilir. Yerel proxy hedefi gerekiyorsa Vite'ın sunucu tarafında okuduğu
-`API_PROXY_TARGET` yalnızca göz ardı edilen `.env.local` dosyasına yazılmalıdır.
-
-Tarayıcı tabanlı Google Maps anahtarları istemciye teslim edildiği için Google
-Cloud Console'da HTTP referrer ve yalnızca Maps JavaScript API kısıtlarıyla
-sınırlandırılmalıdır. Anahtar yoksa sayfa harita isteği yapmadan açık bir
-yapılandırma durumu gösterir. Harita yalnızca `roadmap`, tıklama ve tek bir
-AdvancedMarker kullanır; Places, Geocoding, Directions, geolocation ve benzeri
-servisler çağrılmaz.
-
-“Senaryoyu Hazırla” düğmesi yerel taslağı doğrular ve sonuçların şu anda
-kullanılamadığını açıklar. Bir endpoint çağrılmaz, sonuç üretilmez ve veri saklanmaz.
-Uygulama/dogrulama ayrıntıları: [simulation-validation.md](docs/simulation-validation.md).
+Vektör harita altlığı doğrudan OpenFreeMap (OpenStreetMap tabanlı) üzerinden
+yüklenir. İnternet erişimi olmadığında harita bileşeni kontrollü bir hata durumu
+gösterir.
 
 ## Tema ve performans
 
 Navbar'daki tema düğmesi açık/koyu seçimini `afet360-theme` anahtarıyla saklar;
 ilk ziyaret sistem tercihini kullanır ve erken başlatma betiği tema parlamasını
 önler. Altı sayfa rota düzeyinde tembel yüklenir. İl GeoJSON'u yalnızca Ana Sayfa
-parçasına, Google Maps sarmalayıcısı ise yalnızca ilgili harita rotalarına girer.
+parçasına, MapLibre harita kütüphanesi ise yalnızca ilgili harita rotalarına girer.

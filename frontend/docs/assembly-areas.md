@@ -16,7 +16,8 @@ A single `getCurrentPosition` call retains its ten-second timeout, no watch/auto
 
 ## Map and list
 
-The existing Google Maps wrapper, environment key, loading boundary and missing-key state are retained. Point geometry maps directly from `[lon,lat]` to marker coordinates. Polygon rings are displayed as Google Maps polygons, including holes, with no centroid, altered boundary or invented entrance. Selection works from point markers, polygons and list cards; selecting a polygon fits its actual bounds. List actions provide keyboard access to polygon selection. Overlays/listeners are removed when replaced or unmounted.
+The MapLibre GL JS map renders assembly points and polygons over OpenFreeMap dark vector tiles with zero API keys. Point geometry maps directly from `[lon,lat]` to marker coordinates. Polygon rings are displayed via GeoJSON Source and fill/outline layers, including holes, with no centroid, altered boundary or invented entrance. Selection works from point markers, polygons and list cards; selecting a polygon fits its actual bounds. List actions provide keyboard access to polygon selection.
+
 
 Cards show only available fields and backend geodesic distance (not walking distance). Point records offer Haritada Göster and a destination-only Google Maps Yol Tarifi link. Polygon records offer Haritada Göster and explain why no directions target can be supplied without an entrance point. The UI never guarantees route safety.
 

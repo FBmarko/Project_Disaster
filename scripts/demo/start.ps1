@@ -302,30 +302,11 @@ try {
 }
 
 # -----------------------------------------------------------------------------
-# 10. Google Maps Key Verification
+# 10. Map Visualization Verification
 # -----------------------------------------------------------------------------
-Write-Host "[4/6] Checking Google Maps browser configuration..." -ForegroundColor Yellow
+Write-Host "[4/6] Verifying map visualization provider..." -ForegroundColor Yellow
+Write-Host "      [OK] MapLibre GL JS + OpenFreeMap configured (no API key required)." -ForegroundColor Green
 
-$frontendEnvLocal = Join-Path $FrontendDir ".env.local"
-$mapsKeyFound = $false
-if (Test-Path $frontendEnvLocal) {
-    $lines = Get-Content $frontendEnvLocal -ErrorAction SilentlyContinue
-    foreach ($line in $lines) {
-        if ($line -match "^\s*VITE_GOOGLE_MAPS_API_KEY\s*=\s*(.+)$") {
-            $val = $matches[1].Trim().Trim('"').Trim("'")
-            if ($val -ne "" -and $val -ne "your_api_key_here") {
-                $mapsKeyFound = $true
-                break
-            }
-        }
-    }
-}
-
-if ($mapsKeyFound) {
-    Write-Host "      [OK] Google Maps browser key detected." -ForegroundColor Green
-} else {
-    Write-Warning "VITE_GOOGLE_MAPS_API_KEY is not set in frontend/.env.local. Maps will render fallback UI."
-}
 
 # -----------------------------------------------------------------------------
 # 11. Launch Backend Service

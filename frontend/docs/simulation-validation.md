@@ -2,31 +2,19 @@
 
 Verified 2026-09-08 for TASK 14B-G (Scientific Ground-Motion Scenario Implementation). Scope is limited to `frontend/` and `/simulation` plus scenario contract client.
 
-## Google Maps architecture (Person 2 boundary preserved)
+## Map visualization architecture (MapLibre GL JS + OpenFreeMap)
 
-- Package: `@vis.gl/react-google-maps` 1.9.0 (single wrapper library).
-- `SimulationMap` reads only `import.meta.env.VITE_GOOGLE_MAPS_API_KEY`. A blank
-  or missing value renders “Google Maps API anahtarı yapılandırılmamış.” and
-  does not mount `APIProvider` or load the Google wrapper chunk.
-- The optional `VITE_GOOGLE_MAPS_MAP_ID` enables a production cloud map ID;
-  otherwise Google's documented `DEMO_MAP_ID` is used for development. A map
-  ID is required by `AdvancedMarker` and is not an API key.
-- `GoogleSimulationMap` uses `APIProvider`, a roadmap `Map`, `AdvancedMarker`
-  and `Pin`. It sets Turkish language/region, requests no optional Places,
-  Geocoding, Directions or other libraries, and disables attribution telemetry
-  specific to the wrapper. It does not use browser geolocation.
-- Initial center is latitude 39, longitude 35, fallback zoom 5. The actual first
-  view fits bounds west 25.5, south 35.5, east 45, north 42.5 so Turkey remains
-  visible at desktop and narrow widths.
-- A map click consumes the wrapper's numeric `event.detail.latLng`, replaces the
-  one stored coordinate pair and renders exactly zero or one marker. No reverse
-  geocoding occurs. “Konumu Temizle” removes both coordinates and marker.
-- The API loader's error callback, Google's documented `gm_authFailure`, a
-  20-second no-tiles timeout and a React error boundary all lead to the visible
-  “Google Maps yüklenemedi.” state with a reload action. Loader errors are not
-  logged by application code because external error URLs can contain the key.
-- The Google wrapper is lazy-loaded and isolated from other routes.
-- **Person 2 boundary**: Loader, APIProvider, and fallback error handling remain untouched.
+- Packages: `maplibre-gl` 6.8.x and `react-map-gl` 8.1.x.
+- MapLibre web worker is initialized using Vite's worker bundler import in `src/config/map.ts`.
+- Basemap: Public vector tiles from OpenFreeMap (`https://tiles.openfreemap.org/styles/dark`), requiring zero API keys or external credentials.
+- `MapLibreSimulationMap` provides interactive map rendering, Turkey view fitting, and click-to-select point positioning.
+- Coordinates follow GeoJSON / MapLibre standard `[longitude, latitude]`.
+- Click on the map records `latitude: event.lngLat.lat, longitude: event.lngLat.lng`.
+- Initial bounds: west 25.5, south 35.5, east 45, north 42.5.
+- Attribution is preserved visibly on the map (OpenStreetMap, OpenFreeMap).
+- Controlled fallback UI is displayed if network access to OpenFreeMap fails or times out.
+- Map component is code-split and lazy-loaded.
+
 
 ## Scientific scenario simulation model & UI (TASK 14B-G)
 

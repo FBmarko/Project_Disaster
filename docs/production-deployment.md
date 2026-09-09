@@ -89,13 +89,13 @@ nano deploy/.env.production
 ```
 
 Required settings:
-1. **`VITE_GOOGLE_MAPS_API_KEY`**: Provide your production Google Maps browser key.
-   > **Security Note:** In the Google Cloud Console, restrict this key to HTTP referrers matching your production domain (e.g., `https://afet360.example.com/*`). Enable only the **Maps JavaScript API**. The current frontend uses `@vis.gl/react-google-maps` strictly for map tile rendering, marker positioning, and polygon overlays. Places API, Geocoding API, and Directions API are not required and must remain disabled for least-privilege security.
+1. **Map Visualization (MapLibre GL JS + OpenFreeMap)**: No application API key, Google Cloud account, or billing setup is required. AFET360 renders vector map tiles directly from public OpenFreeMap (based on OpenStreetMap data). Note: Public OpenFreeMap is an external tile service without a commercial SLA guarantee; client internet access is required to fetch vector tiles.
 2. **`POSTGRES_PASSWORD`**: Set a strong, randomly generated database password.
 3. **`SITE_ADDRESS`**: Set your public HTTPS domain, e.g., `https://afet360.example.com`.
 4. **`AI_PROVIDER`**: Choose `ollama` (default local) or `gemini` (cloud API).
    - If using `gemini`: set `GEMINI_API_KEY=your-gemini-key`.
    - If using `ollama`: keep `OLLAMA_BASE_URL=http://ollama:11434`.
+
 
 > **Authoritative Configuration Loading:** Docker Compose natively loads configuration via the `--env-file deploy/.env.production` flag passed to all commands below. Do not export production secrets into your interactive shell environment, and do not copy or symlink production secrets to the repository root `.env`.
 
@@ -182,8 +182,9 @@ docker compose --env-file deploy/.env.production -f docker-compose.prod.yml up -
 4. **Frontend Root & SPA Fallback**:
    Navigate to `https://afet360.example.com/` and deep links like `https://afet360.example.com/scenario`. The React application should render without blank screens.
 
-5. **Google Maps Check**:
-   Verify the interactive Google Maps component renders tiles correctly. If the fallback placeholder appears, verify `VITE_GOOGLE_MAPS_API_KEY` and Google Cloud Console referrer restrictions.
+5. **Map Visualization Check**:
+   Verify the interactive MapLibre map component renders OpenFreeMap dark vector tiles correctly in simulation and assembly areas. If the fallback placeholder appears, verify client internet access to `https://tiles.openfreemap.org`.
+
 
 ---
 

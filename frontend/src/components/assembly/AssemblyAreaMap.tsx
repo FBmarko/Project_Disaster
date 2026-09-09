@@ -3,7 +3,7 @@ import { LocateFixed, MapPin } from 'lucide-react'
 import type { AssemblyArea, AssemblyCoordinates } from '@/types/assembly'
 import { AssemblyAreaMapState } from './AssemblyAreaMapState'
 
-const GoogleAssemblyAreaMap = lazy(() => import('./GoogleAssemblyAreaMap'))
+const MapLibreAssemblyAreaMap = lazy(() => import('./MapLibreAssemblyAreaMap'))
 
 export interface AssemblyMapProps {
   areas: readonly AssemblyArea[]
@@ -21,13 +21,14 @@ class AssemblyMapBoundary extends Component<{ children: ReactNode }, { failed: b
 }
 
 export function AssemblyAreaMap(props: AssemblyMapProps) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim()
   return (
     <section aria-label="Toplanma alanları haritası" className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border-subtle bg-card shadow-sm">
       <div className="relative h-[340px] sm:h-[460px] lg:h-auto lg:min-h-[600px] lg:flex-1">
-        {apiKey ? <AssemblyMapBoundary><Suspense fallback={<AssemblyAreaMapState state="loading" />}>
-          <GoogleAssemblyAreaMap {...props} apiKey={apiKey} />
-        </Suspense></AssemblyMapBoundary> : <AssemblyAreaMapState state="missing-key" />}
+        <AssemblyMapBoundary>
+          <Suspense fallback={<AssemblyAreaMapState state="loading" />}>
+            <MapLibreAssemblyAreaMap {...props} />
+          </Suspense>
+        </AssemblyMapBoundary>
       </div>
       <div aria-label="Harita işaretleri" className="flex flex-wrap gap-x-5 gap-y-2 border-t border-border-subtle px-4 py-3 text-xs leading-5 text-text-secondary">
         <span className="flex items-center gap-2"><LocateFixed size={16} aria-hidden="true" className="text-blue-700" />Kullanıcı Konumu</span>

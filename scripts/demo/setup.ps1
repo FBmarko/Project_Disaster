@@ -156,30 +156,10 @@ if (-not $modelInstalled) {
     }
 }
 
-# Google Maps API Key Check (Presence only - value is never printed)
-$frontendEnvLocal = Join-Path $FrontendDir ".env.local"
-$mapsKeyConfigured = $false
-if (Test-Path $frontendEnvLocal) {
-    $envContent = Get-Content $frontendEnvLocal -ErrorAction SilentlyContinue
-    foreach ($line in $envContent) {
-        if ($line -match "^\s*VITE_GOOGLE_MAPS_API_KEY\s*=\s*(.+)$") {
-            $val = $matches[1].Trim().Trim('"').Trim("'")
-            if ($val -ne "" -and $val -ne "your_api_key_here") {
-                $mapsKeyConfigured = $true
-                break
-            }
-        }
-    }
-}
-
-if ($mapsKeyConfigured) {
-    Write-Host "[OK] Google Maps browser API key is configured in frontend/.env.local." -ForegroundColor Green
-} else {
-    Write-Warning "VITE_GOOGLE_MAPS_API_KEY is not set in frontend/.env.local."
-    Write-Warning "Backend and datasets will be fully set up, but full Google Maps visualization requires this browser key before presentation."
-}
-
+# Map Visualization Check: MapLibre GL JS + OpenFreeMap requires no API keys
+Write-Host "[OK] Map visualization: MapLibre GL JS + OpenFreeMap (no API key required)." -ForegroundColor Green
 Write-Host ""
+
 
 # -----------------------------------------------------------------------------
 # 3. Python Virtual Environment & Dependencies
@@ -355,12 +335,11 @@ Write-Host "         ONE-TIME SETUP COMPLETED SUCCESSFULLY!                  " -
 Write-Host "=================================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps for presentation:" -ForegroundColor White
-Write-Host "  1. (Optional) Configure your restricted Google Maps API key in frontend/.env.local:" -ForegroundColor Gray
-Write-Host "     VITE_GOOGLE_MAPS_API_KEY=your_key_here" -ForegroundColor Gray
-Write-Host "  2. Ensure local Ollama is running with qwen3.5:2b-q4_K_M:" -ForegroundColor Gray
+Write-Host "  1. Ensure local Ollama is running with qwen3.5:2b-q4_K_M:" -ForegroundColor Gray
 Write-Host "     ollama run qwen3.5:2b-q4_K_M" -ForegroundColor Gray
-Write-Host "  3. Start the application simply using:" -ForegroundColor White
+Write-Host "  2. Start the application simply using:" -ForegroundColor White
 Write-Host "     .\scripts\demo\start.ps1" -ForegroundColor Yellow
-Write-Host "  4. Stop the application after presentation using:" -ForegroundColor White
+Write-Host "  3. Stop the application after presentation using:" -ForegroundColor White
 Write-Host "     .\scripts\demo\stop.ps1" -ForegroundColor Yellow
+
 Write-Host ""

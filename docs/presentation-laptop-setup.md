@@ -35,26 +35,12 @@ git clone https://github.com/FBmarko/Project_Disaster.git
 cd Project_Disaster
 ```
 
-### Step 2.2: Configure Google Maps Browser API Key
-The interactive map requires a restricted Google Maps JavaScript API key.
+### Step 2.2: Map Visualization Configuration
+AFET360 uses **MapLibre GL JS** with **OpenFreeMap** public vector tiles for map visualization.
 
-1. Navigate to the `frontend/` directory and create `.env.local` (copied from `.env.example`):
-   ```powershell
-   Copy-Item frontend\.env.example frontend\.env.local
-   ```
-2. Open `frontend\.env.local` in an editor and set your key:
-   ```ini
-   VITE_GOOGLE_MAPS_API_KEY=AIzaSyYourRestrictedBrowserKeyHere
-   ```
+- **No API key is required**: There is no Google Cloud account, billing setup, or `.env.local` API key requirement.
+- **Zero Configuration**: The frontend connects directly to public OpenFreeMap styles. Internet connectivity is required to load map tiles.
 
-> [!IMPORTANT]
-> **Key Security & Restrictions**:
-> - This key is client-side and loaded by the user's browser.
-> - In Google Cloud Console, restrict this key to **HTTP referrers** (e.g., `http://localhost:*` and `http://127.0.0.1:*`).
-> - Restrict API scope to **Maps JavaScript API**.
-> - **Never** place backend secrets, database passwords, or Google Gemini API keys in `frontend/.env.local`.
-
-*(If you run without this key, the application starts normally with a graceful fallback UI, but interactive map tiles will not render.)*
 
 ### Step 2.3: Run the Automated Setup Script
 Ensure **Docker Desktop** and **Ollama** are running, then run:
@@ -145,5 +131,6 @@ Check if AFET360 processes are currently active without launching anything:
 | `Docker Desktop or Docker daemon is not running` | Docker service not started | Open Docker Desktop from the Windows Start Menu, wait for the whale icon to stabilize, then rerun script. |
 | `Port 8000 is already in use` | Another process is occupying port 8000 | The script identifies the PID occupying port 8000. Stop that application or close previous terminal windows. |
 | `Local Ollama is not responding` | Ollama daemon is closed | Run `ollama run qwen3.5:2b-q4_K_M` in PowerShell or start Ollama from the Windows system tray. |
-| `Google Maps shows "Missing Key" banner` | `VITE_GOOGLE_MAPS_API_KEY` not configured | Verify `frontend/.env.local` contains a valid key and restart via `.\scripts\demo\stop.ps1` followed by `.\scripts\demo\start.ps1`. |
+| `Map shows "Harita altlığı yüklenemedi" banner` | Internet connection or tile service unreachable | Verify internet connectivity to `https://tiles.openfreemap.org`. Application remains operational with clear fallback notice. |
+
 | `Dataset readiness check failed` | Datasets were not provisioned | Run `.\scripts\demo\setup.ps1` to complete initial dataset ingestion. |
